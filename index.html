@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dominion Rebirth</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    /* Custom font setup for Tailwind CDN */
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+    .font-cinzel {
+      font-family: 'Cinzel', serif;
+    }
+    @keyframes fall-and-fade {
+      0% {
+        transform: translate(0, 0) rotate(0deg);
+        opacity: 1;
+      }
+      100% {
+        transform: translate(var(--x-offset-end, 0), 80vh) rotate(calc(var(--rotation, 0deg) * 3));
+        opacity: 0;
+      }
+    }
+    .sigil-fall-animation {
+      position: fixed;
+      z-index: 100;
+      animation: fall-and-fade 1.5s ease-in forwards;
+      pointer-events: none;
+    }
+    img {
+      filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.5));
+    }
+    .no-glow {
+      filter: none;
+    }
+  </style>
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+<body class="bg-[#0a101f]">
+  <div id="root"></div>
+  <script type="module" src="/index.tsx"></script>
+  <script src="https://www.youtube.com/iframe_api"></script>
+</body>
+</html>

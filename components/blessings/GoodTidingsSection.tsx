@@ -1,0 +1,264 @@
+import React, { useState } from 'react';
+import { useCharacterContext } from '../../context/CharacterContext';
+import { GOOD_TIDINGS_DATA, GOOD_TIDINGS_SIGIL_TREE_DATA, ESSENTIAL_BOONS_DATA, MINOR_BOONS_DATA, MAJOR_BOONS_DATA } from '../../constants';
+import type { GoodTidingsSigilTier, ChoiceItem } from '../../types';
+import { BlessingIntro, SectionHeader, SectionSubHeader } from '../ui';
+import { ChoiceCard } from '../TraitCard';
+
+const TierCard: React.FC<{
+  tier: GoodTidingsSigilTier;
+  isSelected: boolean;
+  isDisabled: boolean;
+  onSelect: (id: 'standard' | 'journeyman' | 'master') => void;
+  requirementText: string;
+}> = ({ tier, isSelected, isDisabled, onSelect, requirementText }) => {
+    const color = tier.id === 'standard' ? 'gray' : tier.id === 'journeyman' ? 'green' : 'red';
+    
+    const colorClassMap = {
+      red: { border: 'border-red-500', ring: 'ring-red-500', hover: 'hover:border-red-400/70', text: 'text-red-300' },
+      green: { border: 'border-green-500', ring: 'ring-green-500', hover: 'hover:border-green-400/70', text: 'text-green-300' },
+      gray: { border: 'border-gray-500', ring: 'ring-gray-500', hover: 'hover:border-gray-400/70', text: 'text-gray-300' },
+    };
+    const currentColors = colorClassMap[color];
+
+    const borderClass = isSelected 
+        ? `border-2 ${currentColors.border} ring-2 ${currentColors.ring}` 
+        : `border-gray-800 ${currentColors.hover}`;
+    
+    const interactionClass = isDisabled
+        ? 'opacity-50 cursor-not-allowed'
+        : 'cursor-pointer';
+
+    return (
+        <div 
+          className={`flex-1 flex flex-col items-center p-6 bg-black/30 border rounded-lg transition-all ${borderClass} ${interactionClass}`}
+          onClick={() => !isDisabled && onSelect(tier.id)}
+        >
+            <img src={tier.imageSrc} alt={tier.title} className="w-20 h-20 mb-4" />
+            <h4 className={`font-cinzel text-xl font-bold tracking-wider ${currentColors.text}`}>{tier.title}</h4>
+            <p className="text-sm text-gray-400 mt-2 text-center flex-grow">{tier.description}</p>
+            <div className="border-t border-gray-700 w-full text-center mt-4 pt-4">
+                <p className="font-semibold text-green-400">{tier.benefits}</p>
+                <p className="text-xs text-purple-300/80 mt-1 italic">{requirementText}</p>
+            </div>
+        </div>
+    );
+};
+
+export const GoodTidingsSection: React.FC = () => {
+    const {
+        selectedGoodTidingsTier, handleGoodTidingsTierSelect,
+        selectedEssentialBoons, handleEssentialBoonSelect, availableEssentialBoonPicks,
+        selectedMinorBoons, handleMinorBoonSelect, availableMinorBoonPicks,
+        selectedMajorBoons, handleMajorBoonSelect, availableMajorBoonPicks,
+        availableSigilCounts, handleGoodTidingsBoostToggle, isMinorBoonsBoosted, isMajorBoonsBoosted,
+    } = useCharacterContext();
+
+    const isEssentialBoonDisabled = (boon: ChoiceItem): boolean => {
+        return !selectedGoodTidingsTier || (!selectedEssentialBoons.has(boon.id) && selectedEssentialBoons.size >= availableEssentialBoonPicks);
+    };
+
+    const isMinorBoonDisabled = (boon: ChoiceItem): boolean => {
+        return !(selectedGoodTidingsTier === 'journeyman' || selectedGoodTidingsTier === 'master') || (!selectedMinorBoons.has(boon.id) && selectedMinorBoons.size >= availableMinorBoonPicks);
+    };
+    
+    const isMajorBoonDisabled = (boon: ChoiceItem): boolean => {
+        if (selectedGoodTidingsTier !== 'master') return true;
+        if (!selectedMajorBoons.has(boon.id) && selectedMajorBoons.size >= availableMajorBoonPicks) return true;
+        if (boon.requires && !selectedMinorBoons.has(Array.isArray(boon.requires) ? boon.requires[0] : boon.requires)) {
+            return true;
+        }
+        return false;
+    };
+    
+    const tierOrder: ('standard' | 'journeyman' | 'master')[] = ['standard', 'journeyman', 'master'];
+    const selectedTierIndex = selectedGoodTidingsTier ? tierOrder.indexOf(selectedGoodTidingsTier) : -1;
+    
+    const isTierDisabled = (tierId: 'standard' | 'journeyman' | 'master'): boolean => {
+        const tierIndex = tierOrder.indexOf(tierId);
+
+        if (tierIndex > selectedTierIndex) {
+            if (tierIndex !== selectedTierIndex + 1) {
+                return true;
+            }
+            if (tierId === 'standard' && availableSigilCounts.kaarn < 1) return true;
+            if (tierId === 'journeyman' && availableSigilCounts.purth < 1) return true;
+            if (tierId === 'master' && availableSigilCounts.xuth < 1) return true;
+        }
+        
+        return false;
+    };
+    
+    const tierRequirements = {
+        standard: "Requires: 1 KAARN",
+        journeyman: "Requires: 1 PURTH",
+        master: "Requires: 1 XUTH",
+    };
+
+    const purthBoostDescriptions: { [key: string]: string } = {
+      quick_twitch: "Reaction time is now truly instant.",
+      incredible_will: "Can temporarily shut off all pain receptors.",
+      sensory_master: "Range and acuity of senses are doubled.",
+      cowards_boon: "Boosted 180% instead of 150%.",
+      charisma_plus: "You can tell a person’s vulnerabilities and level of gullibility just by looking at them.",
+      strength_plus: "Can unleash bursts of strength that double your abilities, at the price of exhaustion.",
+      speed_plus: "Speed cap of 500 instead of 400.",
+      smarts_plus: "Can become temporarily immune to all psychic influence, at the price of exhaustion."
+    };
+
+    const xuthBoostDescriptions: { [key: string]: string } = {
+        hokuto_senjukai_ken: "Can punch hard enough to create devastating explosions at the end of your fists.",
+        dont_blink: "Can attack while in super speed without self-harm, although these attacks won't do any more than regular damage and will be extremely exhausting. Can run without exhaustion as long as you aren't interacting with anything.",
+        superpowered_mind: "Immune to psychic influence even by others with the same level of intellect."
+    };
+
+    const isMinorBoostDisabled = !isMinorBoonsBoosted && availableSigilCounts.purth <= 0;
+    const isMajorBoostDisabled = !isMajorBoonsBoosted && availableSigilCounts.xuth <= 0;
+
+    return (
+        <section>
+            <BlessingIntro {...GOOD_TIDINGS_DATA} />
+
+            <div className="my-16 bg-black/20 p-8 rounded-lg border border-gray-800">
+                <SectionHeader>SIGIL TREE</SectionHeader>
+                <div className="flex flex-col md:flex-row items-stretch justify-center gap-8 max-w-5xl mx-auto">
+                    {GOOD_TIDINGS_SIGIL_TREE_DATA.map((tier, index) => (
+                        <React.Fragment key={tier.id}>
+                            <TierCard 
+                                tier={tier}
+                                isSelected={selectedTierIndex >= index}
+                                isDisabled={isTierDisabled(tier.id)}
+                                onSelect={handleGoodTidingsTierSelect}
+                                requirementText={tierRequirements[tier.id]}
+                            />
+                            {index < GOOD_TIDINGS_SIGIL_TREE_DATA.length - 1 && (
+                                <div className="hidden md:flex items-center justify-center">
+                                    <div className="h-px w-16 bg-gray-600"></div>
+                                </div>
+                            )}
+                        </React.Fragment>
+                    ))}
+                </div>
+            </div>
+
+            <div className="mt-16 px-4 lg:px-8">
+                <SectionHeader>ESSENTIAL BOONS</SectionHeader>
+                <SectionSubHeader>Picks Available: {availableEssentialBoonPicks - selectedEssentialBoons.size} / {availableEssentialBoonPicks}</SectionSubHeader>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto">
+                    {ESSENTIAL_BOONS_DATA.map(boon => (
+                        <ChoiceCard 
+                            key={boon.id} 
+                            item={{...boon, cost: ''}} 
+                            isSelected={selectedEssentialBoons.has(boon.id)} 
+                            onSelect={handleEssentialBoonSelect}
+                            disabled={isEssentialBoonDisabled(boon)}
+                            selectionColor="amber"
+                        />
+                    ))}
+                </div>
+            </div>
+
+            <div className="mt-16 px-4 lg:px-8">
+                <SectionHeader>MINOR BOONS</SectionHeader>
+                <div 
+                    className={`my-4 max-w-sm mx-auto p-4 border rounded-lg transition-all bg-black/20 ${
+                        isMinorBoonsBoosted
+                        ? 'border-amber-400 ring-2 ring-amber-400/50 cursor-pointer hover:border-amber-300'
+                        : isMinorBoostDisabled 
+                            ? 'border-gray-700 opacity-50 cursor-not-allowed'
+                            : 'border-gray-700 hover:border-amber-400/50 cursor-pointer'
+                    }`}
+                    onClick={!isMinorBoostDisabled ? () => handleGoodTidingsBoostToggle('minorBoons') : undefined}
+                    role="button"
+                    tabIndex={isMinorBoostDisabled ? -1 : 0}
+                    aria-pressed={isMinorBoonsBoosted}
+                    aria-disabled={isMinorBoostDisabled}
+                >
+                    <div className="flex items-center justify-center gap-4">
+                        <img src="https://saviapple.neocities.org/Seinaru_Magecraft_Girls/img/sigils/purth.png" alt="Purth Sigil" className="w-16 h-16"/>
+                        <div className="text-left">
+                            <h4 className="font-cinzel text-lg font-bold text-amber-300 tracking-widest">
+                                {isMinorBoonsBoosted ? 'BOOSTED' : 'BOOST'}
+                            </h4>
+                            {!isMinorBoonsBoosted && (
+                                 <p className="text-xs text-gray-400 mt-1">Activating this will consume one Purth sigil.</p>
+                            )}
+                        </div>
+                    </div>
+                </div>
+                <SectionSubHeader>Picks Available: {availableMinorBoonPicks - selectedMinorBoons.size} / {availableMinorBoonPicks}</SectionSubHeader>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                    {MINOR_BOONS_DATA.map(boon => {
+                        const boostedText = isMinorBoonsBoosted && purthBoostDescriptions[boon.id]
+                            ? `\n\nBOOSTED: ${purthBoostDescriptions[boon.id]}`
+                            : '';
+                        
+                        const finalDescription = boon.description + boostedText;
+
+                        return (
+                            <ChoiceCard 
+                                key={boon.id} 
+                                item={{...boon, cost: '', description: finalDescription}} 
+                                isSelected={selectedMinorBoons.has(boon.id)} 
+                                onSelect={handleMinorBoonSelect}
+                                disabled={isMinorBoonDisabled(boon)}
+                                selectionColor="amber"
+                            />
+                        )
+                    })}
+                </div>
+            </div>
+            
+            <div className="mt-16 px-4 lg:px-8">
+                <SectionHeader>MAJOR BOONS</SectionHeader>
+                 <div 
+                    className={`my-4 max-w-sm mx-auto p-4 border rounded-lg transition-all bg-black/20 ${
+                        isMajorBoonsBoosted
+                        ? 'border-amber-400 ring-2 ring-amber-400/50 cursor-pointer hover:border-amber-300'
+                        : isMajorBoostDisabled 
+                            ? 'border-gray-700 opacity-50 cursor-not-allowed'
+                            : 'border-gray-700 hover:border-amber-400/50 cursor-pointer'
+                    }`}
+                    onClick={!isMajorBoostDisabled ? () => handleGoodTidingsBoostToggle('majorBoons') : undefined}
+                    role="button"
+                    tabIndex={isMajorBoostDisabled ? -1 : 0}
+                    aria-pressed={isMajorBoonsBoosted}
+                    aria-disabled={isMajorBoostDisabled}
+                >
+                    <div className="flex items-center justify-center gap-4">
+                        <img src="https://saviapple.neocities.org/Seinaru_Magecraft_Girls/img/sigils/xuth.png" alt="Xuth Sigil" className="w-16 h-16"/>
+                        <div className="text-left">
+                            <h4 className="font-cinzel text-lg font-bold text-amber-300 tracking-widest">
+                                {isMajorBoonsBoosted ? 'BOOSTED' : 'BOOST'}
+                            </h4>
+                            {!isMajorBoonsBoosted && (
+                                 <p className="text-xs text-gray-400 mt-1">Activating this will consume one Xuth sigil.</p>
+                            )}
+                        </div>
+                    </div>
+                </div>
+                <SectionSubHeader>Picks Available: {availableMajorBoonPicks - selectedMajorBoons.size} / {availableMajorBoonPicks}</SectionSubHeader>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto">
+                    {MAJOR_BOONS_DATA.map(boon => {
+                        const boostedText = isMajorBoonsBoosted && xuthBoostDescriptions[boon.id]
+                            ? `\n\nBOOSTED: ${xuthBoostDescriptions[boon.id]}`
+                            : '';
+                        
+                        const finalDescription = boon.description + boostedText;
+
+                        return (
+                            <ChoiceCard 
+                                key={boon.id} 
+                                item={{...boon, cost: boon.requires ? `Requires: ${MINOR_BOONS_DATA.find(b => b.id === boon.requires)?.title}` : '', description: finalDescription}} 
+                                isSelected={selectedMajorBoons.has(boon.id)} 
+                                onSelect={handleMajorBoonSelect}
+                                disabled={isMajorBoonDisabled(boon)}
+                                selectionColor="amber"
+                            />
+                        );
+                    })}
+                </div>
+            </div>
+        </section>
+    );
+};
