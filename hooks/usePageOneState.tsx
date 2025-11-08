@@ -20,6 +20,8 @@ export const usePageOneState = () => {
     const [mansionExtraSqFt, setMansionExtraSqFt] = useState(0);
     const [islandExtraMiles, setIslandExtraMiles] = useState(0);
     const [vrChamberCostType, setVrChamberCostType] = useState<'fp' | 'bp' | null>(null);
+    const [assignedVehicleName, setAssignedVehicleName] = useState<string | null>(null);
+
 
     const handleNumParentsChange = (newCount: number) => { if (newCount >= 0 && newCount <= 6) setNumParents(newCount); };
     const handleNumSiblingsChange = (newCount: number) => { if (newCount >= 0 && newCount <= 8) setNumSiblings(newCount); };
@@ -29,6 +31,7 @@ export const usePageOneState = () => {
     const handleMansionSqFtChange = (newCount: number) => { if (newCount >= 0) setMansionExtraSqFt(newCount); };
     const handleIslandMilesChange = (newCount: number) => { if (newCount >= 0) setIslandExtraMiles(newCount); };
     const handleVrChamberCostSelect = (type: 'fp' | 'bp') => setVrChamberCostType(prev => prev === type ? null : type);
+    const handleAssignVehicle = (vehicleName: string | null) => { setAssignedVehicleName(vehicleName); };
 
     const handleTraitSelect = useCallback((traitId: string) => {
         if (!selectedFamilyMemberId) return;
@@ -103,7 +106,22 @@ export const usePageOneState = () => {
     };
 
     const handleTrueSelfTraitSelect = createMultiSelectHandler(setSelectedTrueSelfTraits);
-    const handleAlterEgoTraitSelect = createMultiSelectHandler(setSelectedAlterEgoTraits);
+    
+    const handleAlterEgoTraitSelect = (id: string) => {
+        setSelectedAlterEgoTraits(prevSet => {
+            const newSet = new Set(prevSet);
+            if (newSet.has(id)) {
+                newSet.delete(id);
+                if (id === 'signature_vehicle') {
+                    setAssignedVehicleName(null);
+                }
+            } else {
+                newSet.add(id);
+            }
+            return newSet;
+        });
+    };
+
     const handleMagicalStyleSelect = createMultiSelectHandler(setSelectedMagicalStyles);
     
     const handleHouseSelect = (id: string) => {
@@ -147,5 +165,6 @@ export const usePageOneState = () => {
         mansionExtraSqFt, handleMansionSqFtChange,
         islandExtraMiles, handleIslandMilesChange,
         vrChamberCostType, handleVrChamberCostSelect,
+        assignedVehicleName, handleAssignVehicle,
     };
 };

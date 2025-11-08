@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useCharacterContext } from '../context/CharacterContext';
 import {
     SCHOOLS_DATA, HEADMASTERS_DATA, TEACHERS_DATA,
@@ -8,6 +8,7 @@ import {
 import { ChoiceCard } from './TraitCard';
 import { ClassmateCard } from './ClassmateCard';
 import { SectionHeader, SectionSubHeader } from './ui';
+import { UniformSelectionModal } from './UniformSelectionModal';
 
 export const PageTwo: React.FC = () => {
     const {
@@ -19,6 +20,7 @@ export const PageTwo: React.FC = () => {
         selectedMiscActivityIds, handleMiscActivitySelect,
         selectedClassmateIds, handleClassmateSelect,
         classmateUniforms, handleClassmateUniformSelect,
+        isBoardingSchool, handleBoardingSchoolSelect,
     } = useCharacterContext();
 
     const userSchoolKey = selectedDominionId || 'halidew'; // Default to halidew if nothing is selected
@@ -27,41 +29,26 @@ export const PageTwo: React.FC = () => {
     const topClubs = CLUBS_DATA.slice(0, 3);
     const otherClubs = CLUBS_DATA.slice(3);
 
-    const [menuState, setMenuState] = useState<{
-        visible: boolean;
-        x: number;
-        y: number;
+    const [uniformModalState, setUniformModalState] = useState<{
+        isOpen: boolean;
         classmateId: string | null;
-    }>({ visible: false, x: 0, y: 0, classmateId: null });
+        classmateName: string | null;
+    }>({ isOpen: false, classmateId: null, classmateName: null });
 
-    const handleContextMenu = (event: React.MouseEvent, classmateId: string) => {
-        event.preventDefault();
-        event.stopPropagation();
-        setMenuState({ visible: true, x: event.pageX, y: event.pageY, classmateId });
+    const handleOpenUniformModal = (classmateId: string, classmateName: string) => {
+        setUniformModalState({ isOpen: true, classmateId, classmateName });
     };
 
-    const handleCloseMenu = () => {
-        if (menuState.visible) {
-            setMenuState({ visible: false, x: 0, y: 0, classmateId: null });
-        }
+    const handleCloseUniformModal = () => {
+        setUniformModalState({ isOpen: false, classmateId: null, classmateName: null });
     };
 
-    const handleUniformSelectClick = (uniformId: string) => {
-        if (menuState.classmateId) {
-            handleClassmateUniformSelect(menuState.classmateId, uniformId);
+    const handleSelectUniformInModal = (uniformId: string) => {
+        if (uniformModalState.classmateId) {
+            handleClassmateUniformSelect(uniformModalState.classmateId, uniformId);
         }
-        handleCloseMenu();
+        handleCloseUniformModal();
     };
-
-    useEffect(() => {
-        if (menuState.visible) {
-            const listener = () => handleCloseMenu();
-            document.addEventListener('click', listener);
-            return () => {
-                document.removeEventListener('click', listener);
-            };
-        }
-    }, [menuState.visible]);
 
     return (
         <>
@@ -104,6 +91,25 @@ export const PageTwo: React.FC = () => {
                         <p>Select a Dominion on Page 1 to see your school.</p>
                     </div>
                 )}
+            </div>
+
+            {/* Boarding School Section */}
+            <div className="my-16 bg-gradient-to-b from-[#2a1d15]/80 to-[#1f1612]/80 backdrop-blur-sm border border-yellow-900/70 rounded-xl p-8 shadow-2xl shadow-black/40">
+                <div className="flex flex-col md:flex-row items-center gap-8 max-w-5xl mx-auto">
+                    <img src="https://saviapple.neocities.org/Seinaru_Magecraft_Girls/img/Pg2/main4.png" alt="Dormitory" className="w-full md:w-80 h-auto object-cover rounded-md flex-shrink-0" />
+                    <div>
+                        <p className="text-gray-300 text-sm leading-relaxed mb-4">
+                            Since commuting across even vast distances is extremely quick for a Mage, you have two options: either stay home with your family and simply travel to school every day, or move into one of the dorms during your education.
+                        </p>
+                        <button
+                            onClick={handleBoardingSchoolSelect}
+                            className={`w-full p-4 rounded-lg border-2 transition-colors text-left ${isBoardingSchool ? 'border-amber-400 bg-amber-900/30' : 'border-gray-700 bg-black/20 hover:border-amber-400/50'}`}
+                        >
+                            <h4 className="font-cinzel text-lg font-bold text-white">CHOOSE BOARDING SCHOOL</h4>
+                            <p className="text-xs text-gray-400 mt-1">This option is free by default, but if you chose Ragamuffin, it will cost 8 FP.</p>
+                        </button>
+                    </div>
+                </div>
             </div>
 
             {/* Headmaster Section */}
@@ -181,7 +187,7 @@ export const PageTwo: React.FC = () => {
              <div className="my-16 bg-gradient-to-b from-[#2a1d15]/80 to-[#1f1612]/80 backdrop-blur-sm border border-yellow-900/70 rounded-xl p-8 shadow-2xl shadow-black/40">
                 <h3 className="font-cinzel text-3xl text-amber-200 text-center tracking-widest mb-4">YOUR CLASSMATES</h3>
                 <p className="text-center text-yellow-100/60 italic max-w-3xl mx-auto text-sm mb-10">
-                    Obviously you will have many classmates in your time at the school, but this will select the ones who will be most prominent in your life. Perhaps circumstances will conspire to make you friends? Fellow school club members? Maybe even teammates? You can pick as many as you can afford. At first, you'll usually only know their alter ego. Signature powers are permanently boosted. They all have the essential powers. <strong className="text-amber-200">Right-click a classmate to set their uniform.</strong> Additionally, you get a 2 FP refund when purchasing classmates from your own dominion.
+                    Obviously you will have many classmates in your time at the school, but this will select the ones who will be most prominent in your life. Perhaps circumstances will conspire to make you friends? Fellow school club members? Maybe even teammates? You can pick as many as you can afford. At first, you'll usually only know their alter ego. Signature powers are permanently boosted. They all have the essential powers. <strong className="text-amber-200">Click the shirt icon to set their uniform.</strong> Additionally, you get a 2 FP refund when purchasing classmates from your own dominion.
                 </p>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {CLASSMATES_DATA.map(classmate => {
@@ -199,31 +205,21 @@ export const PageTwo: React.FC = () => {
                                 disabled={isMultiplayer}
                                 selectionColor="brown"
                                 refundText={hasRefund ? 'GRANTS +2 FP' : undefined}
-                                onContextMenu={(e) => handleContextMenu(e, classmate.id)}
+                                onUniformButtonClick={() => handleOpenUniformModal(classmate.id, classmate.name)}
                                 uniformName={uniform?.title}
                             />
                         );
                     })}
                 </div>
              </div>
-             {menuState.visible && (
-                <div
-                    style={{ top: menuState.y, left: menuState.x }}
-                    className="fixed z-50 bg-[#1f1612] border border-yellow-800 rounded-md shadow-lg p-2 flex flex-col gap-1 w-48"
-                    onClick={(e) => e.stopPropagation()} // Prevent menu from closing itself when clicked
-                >
-                    <h5 className="text-xs text-amber-300/70 px-2 pt-1 pb-2 border-b border-yellow-800/50 font-cinzel">SET UNIFORM</h5>
-                    {UNIFORMS_DATA.map(uniform => (
-                    <div
-                        key={uniform.id}
-                        onClick={() => handleUniformSelectClick(uniform.id)}
-                        className="flex items-center gap-2 p-1.5 rounded-md hover:bg-yellow-900/50 cursor-pointer"
-                    >
-                        <img src={uniform.imageSrc} alt={uniform.title} className="w-6 h-10 object-cover rounded-sm flex-shrink-0" />
-                        <span className="text-xs text-amber-100">{uniform.title}</span>
-                    </div>
-                    ))}
-                </div>
+
+             {uniformModalState.isOpen && uniformModalState.classmateId && uniformModalState.classmateName && (
+                <UniformSelectionModal
+                    classmateName={uniformModalState.classmateName}
+                    currentUniformId={classmateUniforms.get(uniformModalState.classmateId)}
+                    onClose={handleCloseUniformModal}
+                    onSelect={handleSelectUniformInModal}
+                />
             )}
         </>
     );

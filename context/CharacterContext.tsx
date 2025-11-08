@@ -95,6 +95,7 @@ interface ICharacterContext extends
   isReferencePageOpen: boolean;
   openReferencePage: () => void;
   closeReferencePage: () => void;
+  addMiscFpCost: (amount: number) => void;
 }
 
 const CharacterContext = createContext<ICharacterContext | undefined>(undefined);
@@ -113,6 +114,7 @@ export const CharacterProvider: React.FC<{ children: ReactNode }> = ({ children 
     const [blessingPoints, setBlessingPoints] = useState(100);
     const [fortunePoints, setFortunePoints] = useState(100);
     const [isReferencePageOpen, setIsReferencePageOpen] = useState(false);
+    const [miscFpCosts, setMiscFpCosts] = useState(0);
 
     // --- PAGE-SPECIFIC STATE HOOKS ---
     const pageOneState = usePageOneState();
@@ -243,9 +245,56 @@ export const CharacterProvider: React.FC<{ children: ReactNode }> = ({ children 
             totalFpCost += currentFpCost;
             totalBpCost += cost.bp;
         });
+        if (pageTwoState.isBoardingSchool && pageOneState.selectedHouseId === 'ragamuffin') {
+            totalFpCost += 8;
+        }
         
         // Page 3
-        accumulateCost(pageThreeState.selectedBlessingEngraving);
+        const allBlessingEngravings = [
+            pageThreeState.goodTidingsEngraving,
+            pageThreeState.compellingWillEngraving,
+            pageThreeState.worldlyWisdomEngraving,
+            pageThreeState.bitterDissatisfactionEngraving,
+            pageThreeState.lostHopeEngraving,
+            pageThreeState.fallenPeaceEngraving,
+            pageThreeState.graciousDefeatEngraving,
+            pageThreeState.closedCircuitsEngraving,
+            pageThreeState.righteousCreationEngraving,
+        ];
+        
+        for (const engraving of allBlessingEngravings) {
+            const finalEngraving = engraving ?? pageThreeState.selectedBlessingEngraving;
+            if (finalEngraving === 'weapon') {
+                // Costs for weapon engraving are now handled on the Reference Page when saving a new build.
+            }
+        }
+        
+        // BP Refund Logic for weapon engravings + juathas sigil
+        let bpRefund = 0;
+        const checkRefund = (engraving: string | null, sigilSet: Set<string>, juathasSigilId: string) => {
+            const finalEngraving = engraving ?? pageThreeState.selectedBlessingEngraving;
+            if (finalEngraving === 'weapon' && sigilSet.has(juathasSigilId)) {
+                bpRefund++;
+            }
+        };
+
+        const refundMap = [
+            { engraving: pageThreeState.compellingWillEngraving, sigils: pageThreeState.selectedCompellingWillSigils, juathasId: 'manipulator' },
+            { engraving: pageThreeState.worldlyWisdomEngraving, sigils: pageThreeState.selectedWorldlyWisdomSigils, juathasId: 'arborealist' },
+            { engraving: pageThreeState.bitterDissatisfactionEngraving, sigils: pageThreeState.selectedBitterDissatisfactionSigils, juathasId: 'fireborn' },
+            { engraving: pageThreeState.lostHopeEngraving, sigils: pageThreeState.selectedLostHopeSigils, juathasId: 'young_witch' },
+            { engraving: pageThreeState.fallenPeaceEngraving, sigils: pageThreeState.selectedFallenPeaceSigils, juathasId: 'left_brained' },
+            { engraving: pageThreeState.graciousDefeatEngraving, sigils: pageThreeState.selectedGraciousDefeatSigils, juathasId: 'gd_fireborn' },
+            { engraving: pageThreeState.closedCircuitsEngraving, sigils: pageThreeState.selectedClosedCircuitsSigils, juathasId: 'script_kiddy' },
+            { engraving: pageThreeState.righteousCreationEngraving, sigils: pageThreeState.selectedRighteousCreationSigils, juathasId: 'rookie_engineer' },
+        ];
+
+        for (const { engraving, sigils, juathasId } of refundMap) {
+            checkRefund(engraving, sigils, juathasId);
+        }
+        totalBpCost -= bpRefund;
+
+
         pageThreeState.acquiredCommonSigils.forEach((count, id) => {
             const cost = ALL_COSTS.get(id) ?? {fp: 0, bp: 0};
             totalFpCost += cost.fp * count;
@@ -266,7 +315,11 @@ export const CharacterProvider: React.FC<{ children: ReactNode }> = ({ children 
         });
         
         // Page 4
-        pageFourState.selectedLimitlessPotentialRunes.forEach(accumulateCost);
+        const ruhaiCount = pageFourState.acquiredRunes.get('ruhai') ?? 0;
+        const mialgrathCount = pageFourState.acquiredRunes.get('mialgrath') ?? 0;
+        totalBpCost += (ALL_COSTS.get('ruhai')?.bp ?? 0) * ruhaiCount;
+        totalBpCost += (ALL_COSTS.get('mialgrath')?.bp ?? 0) * mialgrathCount;
+
 
         // Page 5
         pageFiveState.selectedAllmillorIds.forEach(accumulateCost);
@@ -286,22 +339,27 @@ export const CharacterProvider: React.FC<{ children: ReactNode }> = ({ children 
         // Page 6
         accumulateCost(pageSixState.selectedRetirementChoiceId);
         accumulateCost(pageSixState.selectedChildOfGodChoiceId);
+        
+        // Misc Costs
+        totalFpCost += miscFpCosts;
 
         setFortunePoints(100 - totalFpCost);
         setBlessingPoints(100 - totalBpCost);
     }, [
-        selectedDominionId, ALL_COSTS,
+        selectedDominionId, ALL_COSTS, miscFpCosts,
         pageOneState, pageTwoState, pageThreeState, pageFourState, pageFiveState, pageSixState
     ]);
     
     const handleSelectDominion = (id: string) => setSelectedDominionId(id);
     const openReferencePage = () => setIsReferencePageOpen(true);
     const closeReferencePage = () => setIsReferencePageOpen(false);
+    const addMiscFpCost = (amount: number) => setMiscFpCosts(prev => prev + amount);
 
     const contextValue: ICharacterContext = {
       selectedDominionId, handleSelectDominion,
       blessingPoints, fortunePoints,
       isReferencePageOpen, openReferencePage, closeReferencePage,
+      addMiscFpCost,
       ...pageOneState,
       ...pageTwoState,
       ...pageThreeState,

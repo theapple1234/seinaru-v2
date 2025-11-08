@@ -9,6 +9,7 @@ export const usePageTwoState = ({ isMultiplayer }: { isMultiplayer: boolean }) =
     const [selectedMiscActivityIds, setSelectedMiscActivityIds] = useState<Set<string>>(new Set());
     const [selectedClassmateIds, setSelectedClassmateIds] = useState<Set<string>>(new Set());
     const [classmateUniforms, setClassmateUniforms] = useState<Map<string, string>>(new Map());
+    const [isBoardingSchool, setIsBoardingSchool] = useState(false);
 
     // Lock choices in multiplayer
     useEffect(() => {
@@ -48,6 +49,10 @@ export const usePageTwoState = ({ isMultiplayer }: { isMultiplayer: boolean }) =
         setClassmateUniforms(prev => new Map(prev).set(classmateId, uniformId));
     };
 
+    const handleBoardingSchoolSelect = () => {
+        setIsBoardingSchool(prev => !prev);
+    };
+
     return {
         selectedHeadmasterId, handleHeadmasterSelect,
         selectedTeacherIds, handleTeacherSelect,
@@ -56,5 +61,6 @@ export const usePageTwoState = ({ isMultiplayer }: { isMultiplayer: boolean }) =
         selectedMiscActivityIds, handleMiscActivitySelect,
         selectedClassmateIds, handleClassmateSelect,
         classmateUniforms, handleClassmateUniformSelect,
+        isBoardingSchool, handleBoardingSchoolSelect,
     };
 };

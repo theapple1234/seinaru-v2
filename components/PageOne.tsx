@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useCharacterContext } from '../context/CharacterContext';
 import { 
   DOMINIONS, TRAITS_DATA, HOUSES_DATA, HOUSE_UPGRADES_DATA,
@@ -10,6 +10,7 @@ import { DominionCard } from './DominionCard';
 import { PointCard } from './PointCard';
 import { ChoiceCard } from './TraitCard';
 import { SectionHeader, SectionSubHeader } from './ui';
+import { VehicleSelectionModal } from './VehicleSelectionModal';
 
 interface CounterProps {
     label: string;
@@ -31,6 +32,12 @@ const Counter: React.FC<CounterProps> = ({ label, count, onCountChange, unit, co
     </div>
 );
 
+const VehicleIcon: React.FC = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
+        <path fillRule="evenodd" d="M18.316 6.383c.25.344.31.787.163 1.189l-1.55 4.135a1.5 1.5 0 01-1.429 1.043H4.5a1.5 1.5 0 01-1.429-1.043L1.52 7.572a1.5 1.5 0 01.163-1.189A1.5 1.5 0 013 6h14a1.5 1.5 0 011.316.383zM4.341 14a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zm11.318 0a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" clipRule="evenodd" />
+    </svg>
+);
+
 export const PageOne: React.FC = () => {
     const {
         selectedDominionId, blessingPoints, fortunePoints,
@@ -46,7 +53,10 @@ export const PageOne: React.FC = () => {
         mansionExtraSqFt, handleMansionSqFtChange,
         islandExtraMiles, handleIslandMilesChange,
         vrChamberCostType, handleVrChamberCostSelect,
+        assignedVehicleName, handleAssignVehicle
     } = useCharacterContext();
+
+    const [isVehicleModalOpen, setIsVehicleModalOpen] = useState(false);
 
     const getFamilyMemberColor = (index: number): string => {
         const colors = [
@@ -344,9 +354,14 @@ export const PageOne: React.FC = () => {
             <div className="flex flex-col items-center text-center">
             <img src="https://saviapple.neocities.org/Seinaru_Magecraft_Girls/img/Pg1/main4.jpg" alt="Alter Ego concept"
                 className="rounded-full w-80 h-80 object-cover border-4 border-gray-700 shadow-lg mb-8" />
-            <p className="max-w-4xl mx-auto text-gray-300 leading-relaxed">
-                In around the 2000's, the Magus councils and secret societies began to rethink the raising of Mages...
-            </p>
+            <div className="max-w-4xl mx-auto text-gray-300 leading-relaxed space-y-4">
+                <p>
+                    In around the 3000's, the Magus councils and secret societies began to rethink the raising of Mages. It was found being a celebrity from early childhood often had a harmful effect on their psychological development; worse, their enemies would often force them into acquiescing by threatening to go after their family members and other loved ones. Thus, the Dominions agreed on the establishment of the Alter Ego system.
+                </p>
+                <p>
+                    You will have two forms: your alter ego, who will be known by all, and your secret identity, whose location and nature will be kept confidential. Memory wiping cantrips can easily be used in the case someone accidentally finds out about your identity. Most people support mages, and will thus happily submit to this process; however, some may want to use their knowledge to sabotage you, so be careful! You will be able to transform between your real self and your alter ego at will, though this will take a few seconds.
+                </p>
+            </div>
             </div>
 
             <SectionSubHeader>Here, you can purchase traits for your True Self.</SectionSubHeader>
@@ -358,9 +373,29 @@ export const PageOne: React.FC = () => {
 
             <SectionSubHeader>Here, you can purchase traits for your Alter Ego.</SectionSubHeader>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {ALTER_EGO_TRAITS.map(trait => (
-                <ChoiceCard key={trait.id} item={trait} isSelected={selectedAlterEgoTraits.has(trait.id)} onSelect={handleAlterEgoTraitSelect} />
-            ))}
+            {ALTER_EGO_TRAITS.map(trait => {
+                 const isSigVehicle = trait.id === 'signature_vehicle';
+                 const sigVehicleSelected = selectedAlterEgoTraits.has('signature_vehicle');
+
+                return (
+                    <ChoiceCard
+                        key={trait.id}
+                        item={trait}
+                        isSelected={selectedAlterEgoTraits.has(trait.id)}
+                        onSelect={handleAlterEgoTraitSelect}
+                        iconButton={isSigVehicle && sigVehicleSelected ? <VehicleIcon /> : undefined}
+                        onIconButtonClick={isSigVehicle && sigVehicleSelected ? () => setIsVehicleModalOpen(true) : undefined}
+                        imageRounding="lg"
+                    >
+                         {isSigVehicle && assignedVehicleName && (
+                            <div className="text-center mt-2">
+                                <p className="text-xs text-gray-400">Assigned:</p>
+                                <p className="text-sm font-bold text-cyan-300">{assignedVehicleName}</p>
+                            </div>
+                        )}
+                    </ChoiceCard>
+                );
+            })}
             </div>
         </section>
 
@@ -416,6 +451,17 @@ export const PageOne: React.FC = () => {
                 ))}
             </div>
         </section>
+
+        {isVehicleModalOpen && (
+            <VehicleSelectionModal
+                onClose={() => setIsVehicleModalOpen(false)}
+                onSelect={(vehicleName) => {
+                    handleAssignVehicle(vehicleName);
+                    setIsVehicleModalOpen(false);
+                }}
+                currentVehicleName={assignedVehicleName}
+            />
+        )}
         </>
     )
 }

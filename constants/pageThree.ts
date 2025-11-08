@@ -11,7 +11,7 @@ import type {
 export const BLESSING_ENGRAVINGS: ChoiceItem[] = [
     { id: 'skin', title: 'SKIN', cost: 'Costs 0 FP', description: "Not a very pleasant process, getting these sigils etched onto your bare skin... but what are you gonna do? At least the Blessing can't be taken away, unless that part of your body is chopped off. This is required for Blessings affected by the trait Magician.", imageSrc: 'https://saviapple.neocities.org/Seinaru_Magecraft_Girls/img/Pg3/where1.png' },
     { id: 'clothes', title: 'CLOTHES', cost: 'Costs 0 FP', description: "Probably the simplest option: have it emblazoned on your dress! The dress that comes with your alter ego is massively strengthened compared to normal fabric, but still, if it's torn or stolen, you'll lose the blessing until you can get it repaired or replaced.", imageSrc: 'https://saviapple.neocities.org/Seinaru_Magecraft_Girls/img/Pg3/where2.png' },
-    { id: 'weapon', title: 'WEAPON', cost: 'Costs 5 FP', description: "A weapon will grant you 20 Weapon Points on the Reference Page. Carving a Blessing onto a weapon will incur a 1 BP discount on its Juathae sigil. However, said power will be limited to the weapon, and useless if you are disarmed.", imageSrc: 'https://saviapple.neocities.org/Seinaru_Magecraft_Girls/img/Pg3/where3.png' },
+    { id: 'weapon', title: 'WEAPON', cost: 'Costs 0 FP', description: "A weapon will grant you 20 Weapon Points on the Reference Page. Carving a Blessing onto a weapon will incur a 1 BP discount on its Juathae sigil. However, said power will be limited to the weapon, and useless if you are disarmed.", imageSrc: 'https://saviapple.neocities.org/Seinaru_Magecraft_Girls/img/Pg3/where3.png' },
 ];
 
 export const COMMON_SIGILS_DATA: Sigil[] = [
@@ -65,7 +65,7 @@ export const GOOD_TIDINGS_DATA = {
     imageSrc: "https://saviapple.neocities.org/Seinaru_Magecraft_Girls/img/Pg3/main4.png",
     description: `This is about as basic as a blessing can get! As opposed to more traditional spells, which must be actively used, this blessing applies more passive buffs that affect your body directly. This blessing is pretty much used by every mage who's ever lived -- I genuinely can't think of a single one who hadn't taken it, or at least, not one who survived long enough to be remembered. There was a time, during the war, that the Mother considered making this the only blessing people were allowed access to, but the arrival of the Allmillor put the kibosh on that.
 
-Perhaps most important is the included durability. Battles between mages can go on for hours, and even when at the point they'd normally die, they instead fall unconscious. Killing a mage would essentially require you to coup de grace them while they're knocked out, which is still surprisingly difficult. This blessing cannot be applied to weapons.`
+Perhaps most important is the included durability. Battles between mages can go on for hours, and even when at the point they'd normally die, they instead fall unconscious. Killing a mage would essentially require you to coup de grace them while they're knocked out, which is still surprisingly difficult.`
 };
 
 export const GOOD_TIDINGS_SIGIL_TREE_DATA: GoodTidingsSigilTier[] = [

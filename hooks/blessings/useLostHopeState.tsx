@@ -1,7 +1,13 @@
-// This file will contain the state and logic for the Lost Hope blessing.
-// Due to the complexity of the overall refactor, this is a placeholder.
 import { useState, useMemo } from 'react';
+import type { Dispatch, SetStateAction } from 'react';
 import type { SigilCounts } from '../../types';
+import { LOST_HOPE_SIGIL_TREE_DATA, CHANNELLING_DATA, NECROMANCY_DATA, BLACK_MAGIC_DATA } from '../../constants';
+
+const getSigilTypeFromImage = (imageSrc: string): keyof SigilCounts | null => {
+    const sigilImageMap: {[key: string]: keyof SigilCounts} = { 'kaarn.png': 'kaarn', 'purth.png': 'purth', 'juathas.png': 'juathas', 'xuth.png': 'xuth', 'sinthru.png': 'sinthru', 'lekolu.png': 'lekolu' };
+    for (const key in sigilImageMap) { if (imageSrc.endsWith(key)) { return sigilImageMap[key]; } }
+    return null;
+}
 
 export const useLostHopeState = ({ availableSigilCounts }: { availableSigilCounts: SigilCounts }) => {
     const [selectedLostHopeSigils, setSelectedLostHopeSigils] = useState<Set<string>>(new Set());
@@ -11,33 +17,123 @@ export const useLostHopeState = ({ availableSigilCounts }: { availableSigilCount
     const [isChannellingBoosted, setIsChannellingBoosted] = useState(false);
     const [isNecromancyBoosted, setIsNecromancyBoosted] = useState(false);
     const [blackMagicBoostSigil, setBlackMagicBoostSigil] = useState<'sinthru' | 'xuth' | null>(null);
-    
-    const usedSigilCounts = useMemo((): SigilCounts => ({ kaarn: 0, purth: 0, juathas: 0, xuth: 0, sinthru: 0, lekolu: 0 }), []);
 
-    // Placeholder handlers
-    const handleLostHopeSigilSelect = () => {};
-    const handleChannellingSelect = () => {};
-    const handleNecromancySelect = () => {};
-    const handleBlackMagicSelect = () => {};
-    // FIX: Add argument to placeholder function to match its usage.
-    const handleLostHopeBoostToggle = (type: 'channelling' | 'necromancy' | 'blackMagic') => {};
+    const { availableChannellingPicks, availableNecromancyPicks, availableBlackMagicPicks } = useMemo(() => {
+        let channelling = 0, necromancy = 0, blackMagic = 0;
+        selectedLostHopeSigils.forEach(sigilId => {
+            const sigil = LOST_HOPE_SIGIL_TREE_DATA.find(s => s.id === sigilId);
+            if(sigil) {
+                channelling += sigil.benefits.channeling ?? 0;
+                necromancy += sigil.benefits.necromancy ?? 0;
+                blackMagic += sigil.benefits.blackMagic ?? 0;
+            }
+        });
+        return { availableChannellingPicks: channelling, availableNecromancyPicks: necromancy, availableBlackMagicPicks: blackMagic };
+    }, [selectedLostHopeSigils]);
+
+    const handleLostHopeSigilSelect = (sigilId: string) => {
+        const newSelected = new Set(selectedLostHopeSigils);
+        const sigil = LOST_HOPE_SIGIL_TREE_DATA.find(s => s.id === sigilId);
+        if (!sigil) return;
+
+        if (newSelected.has(sigilId)) {
+            const toRemove = new Set<string>();
+            const queue = [sigilId];
+            toRemove.add(sigilId);
+            while(queue.length > 0) {
+                const currentId = queue.shift()!;
+                LOST_HOPE_SIGIL_TREE_DATA.forEach(child => {
+                    if (child.prerequisites.includes(currentId) && newSelected.has(child.id) && !toRemove.has(child.id)) {
+                        toRemove.add(child.id);
+                        queue.push(child.id);
+                    }
+                });
+            }
+            toRemove.forEach(id => newSelected.delete(id));
+            
+            const deselectDependent = (powersData: any[], selectedSet: Set<string>, setFunc: Dispatch<SetStateAction<Set<string>>>) => {
+                const newPowerSet = new Set(selectedSet);
+                selectedSet.forEach(powerId => {
+                    const power = powersData.find(p => p.id === powerId);
+                    if(power?.requires?.some((req: string) => toRemove.has(req))) {
+                        newPowerSet.delete(powerId);
+                    }
+                });
+                setFunc(newPowerSet);
+            };
+
+            deselectDependent(CHANNELLING_DATA, selectedChannelling, setSelectedChannelling);
+            deselectDependent(NECROMANCY_DATA, selectedNecromancy, setSelectedNecromancy);
+            deselectDependent(BLACK_MAGIC_DATA, selectedBlackMagic, setSelectedBlackMagic);
+            
+        } else {
+            const canSelect = sigil.prerequisites.every(p => newSelected.has(p));
+            const sigilType = getSigilTypeFromImage(sigil.imageSrc);
+            const sigilCost = sigilType ? 1 : 0;
+            const hasSigil = sigilType ? availableSigilCounts[sigilType] >= sigilCost : true;
+
+            if (canSelect && hasSigil) {
+                newSelected.add(sigilId);
+            }
+        }
+        setSelectedLostHopeSigils(newSelected);
+    };
+
+    const createMultiSelectHandler = (setState: Dispatch<SetStateAction<Set<string>>>, max: number) => (id: string) => {
+        setState(prevSet => {
+            const newSet = new Set(prevSet);
+            if (newSet.has(id)) {
+                newSet.delete(id);
+            } else if (newSet.size < max) {
+                newSet.add(id);
+            }
+            return newSet;
+        });
+    };
+
+    const handleChannellingSelect = createMultiSelectHandler(setSelectedChannelling, availableChannellingPicks);
+    const handleNecromancySelect = createMultiSelectHandler(setSelectedNecromancy, availableNecromancyPicks);
+    const handleBlackMagicSelect = createMultiSelectHandler(setSelectedBlackMagic, availableBlackMagicPicks);
+
+    const handleLostHopeBoostToggle = (type: 'channelling' | 'necromancy' | 'blackMagic') => {
+        if (type === 'channelling') {
+            if (!isChannellingBoosted && availableSigilCounts.kaarn > 0) setIsChannellingBoosted(true);
+            else setIsChannellingBoosted(false);
+        }
+        if (type === 'necromancy') {
+            if (!isNecromancyBoosted && availableSigilCounts.purth > 0) setIsNecromancyBoosted(true);
+            else setIsNecromancyBoosted(false);
+        }
+        if (type === 'blackMagic') {
+            if (!blackMagicBoostSigil) {
+                if (availableSigilCounts.sinthru > 0) setBlackMagicBoostSigil('sinthru');
+                else if (availableSigilCounts.xuth > 0) setBlackMagicBoostSigil('xuth');
+            } else {
+                setBlackMagicBoostSigil(null);
+            }
+        }
+    };
+
+    const usedSigilCounts = useMemo((): SigilCounts => {
+        const used: SigilCounts = { kaarn: 0, purth: 0, juathas: 0, xuth: 0, sinthru: 0, lekolu: 0 };
+        selectedLostHopeSigils.forEach(id => {
+            const sigil = LOST_HOPE_SIGIL_TREE_DATA.find(s => s.id === id);
+            const type = sigil ? getSigilTypeFromImage(sigil.imageSrc) : null;
+            if (type) used[type] += 1;
+        });
+        if(isChannellingBoosted) used.kaarn += 1;
+        if(isNecromancyBoosted) used.purth += 1;
+        if(blackMagicBoostSigil) used[blackMagicBoostSigil] += 1;
+        return used;
+    }, [selectedLostHopeSigils, isChannellingBoosted, isNecromancyBoosted, blackMagicBoostSigil]);
 
     return {
-        selectedLostHopeSigils,
-        selectedChannelling,
-        selectedNecromancy,
-        selectedBlackMagic,
-        isChannellingBoosted,
-        isNecromancyBoosted,
-        blackMagicBoostSigil,
-        availableChannellingPicks: 0,
-        availableNecromancyPicks: 0,
-        availableBlackMagicPicks: 0,
-        handleLostHopeSigilSelect,
-        handleChannellingSelect,
-        handleNecromancySelect,
-        handleBlackMagicSelect,
-        handleLostHopeBoostToggle,
+        selectedLostHopeSigils, handleLostHopeSigilSelect,
+        selectedChannelling, handleChannellingSelect,
+        selectedNecromancy, handleNecromancySelect,
+        selectedBlackMagic, handleBlackMagicSelect,
+        isChannellingBoosted, isNecromancyBoosted, blackMagicBoostSigil, handleLostHopeBoostToggle,
+        availableChannellingPicks, availableNecromancyPicks, availableBlackMagicPicks,
         usedSigilCounts,
     };
 };

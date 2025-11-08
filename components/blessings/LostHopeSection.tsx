@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useCharacterContext } from '../../context/CharacterContext';
-import { FIDELIA_DATA, LOST_HOPE_DATA, LOST_HOPE_SIGIL_TREE_DATA, CHANNELLING_DATA, NECROMANCY_DATA, BLACK_MAGIC_DATA } from '../../constants';
+import { FIDELIA_DATA, LOST_HOPE_DATA, LOST_HOPE_SIGIL_TREE_DATA, CHANNELLING_DATA, NECROMANCY_DATA, BLACK_MAGIC_DATA, BLESSING_ENGRAVINGS } from '../../constants';
 import type { LostHopePower, LostHopeSigil } from '../../types';
-import { BlessingIntro, SectionHeader, SectionSubHeader } from '../ui';
+import { BlessingIntro, SectionHeader, SectionSubHeader, WeaponIcon } from '../ui';
 import { CompellingWillSigilCard, SigilColor } from '../CompellingWillSigilCard';
 import { ChoiceCard } from '../TraitCard';
+import { WeaponSelectionModal } from '../WeaponSelectionModal';
+
 
 const sigilImageMap: {[key: string]: string} = { 'kaarn.png': 'kaarn', 'purth.png': 'purth', 'juathas.png': 'juathas', 'xuth.png': 'xuth', 'sinthru.png': 'sinthru', 'lekolu.png': 'lekolu' };
 const getSigilTypeFromImage = (imageSrc: string): keyof typeof sigilImageMap | null => {
@@ -14,6 +16,14 @@ const getSigilTypeFromImage = (imageSrc: string): keyof typeof sigilImageMap | n
 
 export const LostHopeSection: React.FC = () => {
     const ctx = useCharacterContext();
+    const [isWeaponModalOpen, setIsWeaponModalOpen] = useState(false);
+    const {
+        selectedBlessingEngraving,
+        lostHopeEngraving,
+        handleLostHopeEngravingSelect,
+        lostHopeWeaponName,
+        handleLostHopeWeaponAssign,
+    } = useCharacterContext();
 
     const isLostHopePowerDisabled = (power: LostHopePower, type: 'channelling' | 'necromancy' | 'black_magic'): boolean => {
         const selectedSet = type === 'channelling' ? ctx.selectedChannelling : type === 'necromancy' ? ctx.selectedNecromancy : ctx.selectedBlackMagic;
@@ -32,7 +42,8 @@ export const LostHopeSection: React.FC = () => {
         if (!sigil.prerequisites.every(p => ctx.selectedLostHopeSigils.has(p))) return true;
         
         const sigilType = getSigilTypeFromImage(sigil.imageSrc);
-        if (sigilType && ctx.availableSigilCounts[sigilType as keyof typeof ctx.availableSigilCounts] < 1) return true;
+        const sigilCost = sigilType ? 1 : 0;
+        if (sigilType && ctx.availableSigilCounts[sigilType] < sigilCost) return true;
 
         return false;
     };
@@ -73,12 +84,64 @@ export const LostHopeSection: React.FC = () => {
 
     const isChannellingBoostDisabled = !ctx.isChannellingBoosted && ctx.availableSigilCounts.kaarn <= 0;
     const isNecromancyBoostDisabled = !ctx.isNecromancyBoosted && ctx.availableSigilCounts.purth <= 0;
-    const isBlackMagicBoostDisabled = !ctx.blackMagicBoostSigil && ctx.availableSigilCounts.sinthru < 1 && ctx.availableSigilCounts.xuth < 1;
+    const isBlackMagicBoostDisabled = !ctx.blackMagicBoostSigil && (ctx.availableSigilCounts.sinthru < 1 && ctx.availableSigilCounts.xuth < 1);
 
     return (
         <section>
             <BlessingIntro {...FIDELIA_DATA} />
             <BlessingIntro {...LOST_HOPE_DATA} reverse />
+            <div className="mt-8 mb-16 max-w-3xl mx-auto">
+                <h4 className="font-cinzel text-xl text-center tracking-widest my-6 text-purple-300 uppercase">
+                    Engrave this Blessing
+                </h4>
+                <div className="grid grid-cols-3 gap-4">
+                    {BLESSING_ENGRAVINGS.map(engraving => {
+                        const finalEngraving = lostHopeEngraving ?? selectedBlessingEngraving;
+                        const isSelected = finalEngraving === engraving.id;
+                        const isOverridden = lostHopeEngraving !== null;
+                        const isWeapon = engraving.id === 'weapon';
+
+                        return (
+                             <div key={engraving.id} className="relative">
+                                <button
+                                    onClick={() => handleLostHopeEngravingSelect(engraving.id)}
+                                    className={`w-full p-4 rounded-lg border-2 transition-colors flex flex-col items-center justify-center h-full text-center
+                                        ${isSelected 
+                                            ? (isOverridden ? 'border-purple-400 bg-purple-900/40' : 'border-purple-600/50 bg-purple-900/20') 
+                                            : 'border-gray-700 bg-black/30 hover:border-purple-400/50'}
+                                    `}
+                                >
+                                    <span className="font-cinzel tracking-wider uppercase">{engraving.title}</span>
+                                    {isWeapon && isSelected && lostHopeWeaponName && (
+                                        <p className="text-xs text-purple-300 mt-2 truncate">({lostHopeWeaponName})</p>
+                                    )}
+                                </button>
+                                {isWeapon && isSelected && (
+                                    <button
+                                        onClick={() => setIsWeaponModalOpen(true)}
+                                        className="absolute top-2 right-2 p-2 rounded-full bg-purple-900/50 text-purple-200/70 hover:bg-purple-800/60 hover:text-purple-100 transition-colors z-10"
+                                        aria-label="Change Weapon"
+                                        title="Change Weapon"
+                                    >
+                                        <WeaponIcon />
+                                    </button>
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+
+            {isWeaponModalOpen && (
+                <WeaponSelectionModal
+                    onClose={() => setIsWeaponModalOpen(false)}
+                    onSelect={(weaponName) => {
+                        handleLostHopeWeaponAssign(weaponName);
+                        setIsWeaponModalOpen(false);
+                    }}
+                    currentWeaponName={lostHopeWeaponName}
+                />
+            )}
             <div className="my-16 bg-black/20 p-8 rounded-lg border border-gray-800">
                 <SectionHeader>SIGIL TREE</SectionHeader>
                 <div className="flex flex-col items-center gap-4">

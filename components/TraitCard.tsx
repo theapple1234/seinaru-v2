@@ -14,9 +14,12 @@ interface ChoiceCardProps {
   noBorder?: boolean;
   children?: React.ReactNode;
   alwaysShowChildren?: boolean;
+  onIconButtonClick?: () => void;
+  iconButton?: React.ReactNode;
+  imageRounding?: 'none' | 'sm' | 'md' | 'lg' | 'xl';
 }
 
-export const ChoiceCard: React.FC<ChoiceCardProps> = ({ item, isSelected, onSelect, disabled = false, selectionColor = 'cyan', layout = 'vertical', imageShape = 'rect', aspect, assignedColors = [], noBorder = false, children, alwaysShowChildren = false }) => {
+export const ChoiceCard: React.FC<ChoiceCardProps> = ({ item, isSelected, onSelect, disabled = false, selectionColor = 'cyan', layout = 'vertical', imageShape = 'rect', aspect, assignedColors = [], noBorder = false, children, alwaysShowChildren = false, onIconButtonClick, iconButton, imageRounding = 'md' }) => {
   const { id, title, cost, description, imageSrc } = item;
 
   const isGain = cost && (cost.toLowerCase().includes('grants') || cost.toLowerCase().includes('+'));
@@ -28,28 +31,44 @@ export const ChoiceCard: React.FC<ChoiceCardProps> = ({ item, isSelected, onSele
         ring: 'ring-cyan-400',
         hover: 'hover:border-cyan-300/70',
         ringHover: 'group-hover:ring-cyan-300/70',
-        bg: 'bg-slate-900/80'
+        bg: 'bg-slate-900/80',
+        iconBg: 'bg-cyan-900/50',
+        iconText: 'text-cyan-200/70',
+        iconHoverBg: 'hover:bg-cyan-800/60',
+        iconHoverText: 'hover:text-cyan-100',
     },
     amber: {
         border: 'border-amber-400',
         ring: 'ring-amber-400',
         hover: 'hover:border-amber-300/70',
         ringHover: 'group-hover:ring-amber-300/70',
-        bg: 'bg-slate-900/80'
+        bg: 'bg-slate-900/80',
+        iconBg: 'bg-amber-900/50',
+        iconText: 'text-amber-200/70',
+        iconHoverBg: 'hover:bg-amber-800/60',
+        iconHoverText: 'hover:text-amber-100',
     },
     green: {
         border: 'border-green-400',
         ring: 'ring-green-400',
         hover: 'hover:border-green-300/70',
         ringHover: 'group-hover:ring-green-300/70',
-        bg: 'bg-slate-900/80'
+        bg: 'bg-slate-900/80',
+        iconBg: 'bg-green-900/50',
+        iconText: 'text-green-200/70',
+        iconHoverBg: 'hover:bg-green-800/60',
+        iconHoverText: 'hover:text-green-100',
     },
     brown: {
         border: 'border-yellow-700',
         ring: 'ring-yellow-700',
         hover: 'hover:border-yellow-600/70',
         ringHover: 'group-hover:ring-yellow-600/70',
-        bg: 'bg-black/40'
+        bg: 'bg-black/40',
+        iconBg: 'bg-yellow-900/50',
+        iconText: 'text-yellow-200/70',
+        iconHoverBg: 'hover:bg-yellow-800/60',
+        iconHoverText: 'hover:text-yellow-100',
     }
   };
   const currentTheme = colorThemes[selectionColor] || colorThemes.cyan;
@@ -83,18 +102,49 @@ export const ChoiceCard: React.FC<ChoiceCardProps> = ({ item, isSelected, onSele
     : 'cursor-pointer transition-colors';
 
   const showChildren = (isSelected || alwaysShowChildren) && React.Children.count(children) > 0;
+  
+  const handleIconButtonClick = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      onIconButtonClick?.();
+  };
+
+  const roundingClasses = {
+      none: 'rounded-none',
+      sm: 'rounded-sm',
+      md: 'rounded-md',
+      lg: 'rounded-lg',
+      xl: 'rounded-xl',
+  };
+  const imageRoundingClass = roundingClasses[imageRounding] || 'rounded-md';
+
+  const CardWrapper: React.FC<{ children: React.ReactNode, className: string }> = ({ children, className }) => (
+    <div
+      className={`${className} relative`}
+      style={cardStyle}
+      onClick={() => !disabled && onSelect(id)}
+      aria-disabled={disabled}
+      role="button"
+      tabIndex={disabled ? -1 : 0}
+    >
+      {children}
+      {onIconButtonClick && iconButton && (
+        <button 
+          onClick={handleIconButtonClick}
+          className={`absolute top-2 right-2 p-3 rounded-full ${currentTheme.iconBg} ${currentTheme.iconText} ${currentTheme.iconHoverBg} ${currentTheme.iconHoverText} transition-colors z-10`}
+          aria-label="Card action"
+          title="Card action"
+          disabled={disabled}
+        >
+          {iconButton}
+        </button>
+      )}
+    </div>
+  );
 
   if (layout === 'horizontal-tall') {
     return (
-      <div
-        className={`${currentTheme.bg} backdrop-blur-sm rounded-lg p-3 flex flex-row items-start gap-4 h-full text-left ${borderClass} ${interactionClass}`}
-        style={cardStyle}
-        onClick={() => !disabled && onSelect(id)}
-        aria-disabled={disabled}
-        role="button"
-        tabIndex={disabled ? -1 : 0}
-      >
-        <img src={imageSrc} alt={title} className="w-28 h-48 object-cover rounded-md flex-shrink-0" />
+      <CardWrapper className={`${currentTheme.bg} backdrop-blur-sm rounded-lg p-3 flex flex-row items-start gap-4 h-full text-left ${borderClass} ${interactionClass}`}>
+        <img src={imageSrc} alt={title} className={`w-28 h-48 object-cover ${imageRoundingClass} flex-shrink-0`} />
         <div className="flex flex-col justify-start pt-2">
           <h4 className="font-bold font-cinzel text-white text-base">{title}</h4>
           {cost && cost.trim() && <p className={`text-xs font-semibold my-1 ${costColor}`}>{cost.toUpperCase()}</p>}
@@ -105,21 +155,14 @@ export const ChoiceCard: React.FC<ChoiceCardProps> = ({ item, isSelected, onSele
               </div>
           )}
         </div>
-      </div>
+      </CardWrapper>
     );
   }
     
   if (layout === 'horizontal') {
     return (
-      <div
-        className={`${currentTheme.bg} backdrop-blur-sm rounded-lg p-3 flex flex-row items-start gap-4 h-full text-left ${borderClass} ${interactionClass}`}
-        style={cardStyle}
-        onClick={() => !disabled && onSelect(id)}
-        aria-disabled={disabled}
-        role="button"
-        tabIndex={disabled ? -1 : 0}
-      >
-        <img src={imageSrc} alt={title} className={`w-32 h-24 object-contain bg-black/20 flex-shrink-0 ${imageShape === 'circle' ? 'rounded-full' : 'rounded-md'}`} />
+      <CardWrapper className={`${currentTheme.bg} backdrop-blur-sm rounded-lg p-3 flex flex-row items-start gap-4 h-full text-left ${borderClass} ${interactionClass}`}>
+        <img src={imageSrc} alt={title} className={`w-32 h-24 object-contain bg-black/20 flex-shrink-0 ${imageShape === 'circle' ? 'rounded-full' : imageRoundingClass}`} />
         <div className="flex flex-col justify-center">
           <h4 className="font-bold font-cinzel text-white">{title}</h4>
           {cost && cost.trim() && <p className={`text-xs font-semibold my-1 ${costColor}`}>{cost.toUpperCase()}</p>}
@@ -130,26 +173,19 @@ export const ChoiceCard: React.FC<ChoiceCardProps> = ({ item, isSelected, onSele
               </div>
           )}
         </div>
-      </div>
+      </CardWrapper>
     );
   }
 
   // Vertical layout
   return (
-    <div
-      className={`${currentTheme.bg} backdrop-blur-sm rounded-lg p-2 sm:p-4 flex flex-col h-full text-center ${borderClass} ${interactionClass} ${aspect === 'square' ? 'aspect-square' : ''}`}
-      style={cardStyle}
-      onClick={() => !disabled && onSelect(id)}
-      aria-disabled={disabled}
-      role="button"
-      tabIndex={disabled ? -1 : 0}
-    >
+    <CardWrapper className={`${currentTheme.bg} backdrop-blur-sm rounded-lg p-2 sm:p-4 flex flex-col h-full text-center ${borderClass} ${interactionClass} ${aspect === 'square' ? 'aspect-square' : ''}`}>
       {imageShape === 'circle' ? (
         <div className={`p-1 rounded-full mx-auto mb-2 sm:mb-4 transition-all`}>
           <img src={imageSrc} alt={title} className="w-36 h-36 object-cover rounded-full" />
         </div>
       ) : (
-        <img src={imageSrc} alt={title} className={`w-full ${aspect === 'square' ? 'flex-grow min-h-0' : 'h-48'} object-contain rounded-md ${aspect === 'square' ? 'mb-2' : 'mb-4'}`} />
+        <img src={imageSrc} alt={title} className={`w-full ${aspect === 'square' ? 'flex-grow min-h-0' : 'h-48'} object-contain ${imageRoundingClass} ${aspect === 'square' ? 'mb-2' : 'mb-4'}`} />
       )}
       
       <div className={`flex flex-col justify-center ${aspect === 'square' ? '' : 'flex-grow'}`}>
@@ -162,6 +198,6 @@ export const ChoiceCard: React.FC<ChoiceCardProps> = ({ item, isSelected, onSele
             </div>
         )}
       </div>
-    </div>
+    </CardWrapper>
   );
 };

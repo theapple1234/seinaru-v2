@@ -1,6 +1,4 @@
-
-
-// FIX: Removed conflicting import of 'Dominion' which is declared in this file.
+// FIX: Removed 'import type { Dominion } from ".";' as this type is defined below.
 export interface Dominion {
   id: string;
   title: string;
@@ -280,6 +278,13 @@ export interface StarCrossedLovePact {
     imageSrc: string;
 }
 
+export interface CustomSpell {
+    id: number;
+    description: string;
+    mialgrathApplied: boolean;
+    mialgrathDescription: string;
+}
+
 export type SigilCounts = {
   kaarn: number;
   purth: number;
@@ -298,3 +303,13 @@ export interface CompanionOption {
     description: string;
     requirement?: string;
 }
+
+// Build Types for Reference Page
+export type CompanionSelections = { category: string | null; relationship: string | null; traits: Set<string>; perks: Set<string>; powerLevel: string | null; };
+export type WeaponSelections = { category: string | null; perks: Set<string>; traits: Set<string>; };
+export type BeastSelections = { category: string | null; size: string | null; perks: Set<string>; traits: Set<string>; };
+export type VehicleSelections = { category: string | null; perks: Map<string, number>; };
+
+export type SavedBuildData = { version: number; data: any; };
+export type BuildType = 'companions' | 'weapons' | 'beasts' | 'vehicles';
+export type AllBuilds = Record<BuildType, Record<string, SavedBuildData>>;

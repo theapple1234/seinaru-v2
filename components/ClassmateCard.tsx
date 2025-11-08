@@ -9,10 +9,18 @@ interface ClassmateCardProps {
   selectionColor?: 'amber' | 'brown';
   refundText?: string;
   uniformName?: string;
-  onContextMenu?: (event: React.MouseEvent) => void;
+  onUniformButtonClick: (id: string) => void;
 }
 
-export const ClassmateCard: React.FC<ClassmateCardProps> = ({ classmate, isSelected, onSelect, disabled = false, selectionColor = 'amber', refundText, uniformName, onContextMenu }) => {
+const UniformIcon: React.FC = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+        <path d="M17.293 3.293A1 1 0 0118 4v12a1 1 0 01-1 1H3a1 1 0 01-1-1V4a1 1 0 011-1h1.293l.94-1.566A1 1 0 016.133 2h7.734a1 1 0 01.894.434L15.707 3H17.293zM10 8a3 3 0 100 6 3 3 0 000-6z" />
+        <path d="M4 4h2l-1-2-1 2zM14 4h2l-1-2-1 2z" />
+    </svg>
+);
+
+
+export const ClassmateCard: React.FC<ClassmateCardProps> = ({ classmate, isSelected, onSelect, disabled = false, selectionColor = 'amber', refundText, uniformName, onUniformButtonClick }) => {
   const { id, name, cost, description, imageSrc, birthplace, signature, otherPowers } = classmate;
 
   const isGain = cost.toLowerCase().includes('grants');
@@ -40,11 +48,15 @@ export const ClassmateCard: React.FC<ClassmateCardProps> = ({ classmate, isSelec
     ? 'opacity-50 cursor-not-allowed'
     : `cursor-pointer ${currentTheme.hover} transition-colors`;
 
+  const handleUniformClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onUniformButtonClick(id);
+  };
+
   return (
     <div
-      className={`flex flex-col md:flex-row p-4 ${currentTheme.bg} border rounded-lg h-full gap-4 ${interactionClass} ${borderClass}`}
+      className={`relative flex flex-col md:flex-row p-4 ${currentTheme.bg} border rounded-lg h-full gap-4 ${interactionClass} ${borderClass}`}
       onClick={() => !disabled && onSelect(id)}
-      onContextMenu={onContextMenu}
       role="button"
       tabIndex={disabled ? -1 : 0}
       aria-disabled={disabled}
@@ -66,6 +78,15 @@ export const ClassmateCard: React.FC<ClassmateCardProps> = ({ classmate, isSelec
           </div>
         </div>
       </div>
+       <button 
+        onClick={handleUniformClick}
+        className="absolute top-2 right-2 p-2 rounded-full bg-black/50 text-amber-200/70 hover:bg-yellow-900/50 hover:text-amber-100 transition-colors z-10"
+        aria-label={`Change ${name}'s uniform`}
+        title="Change Uniform"
+        disabled={disabled}
+      >
+        <UniformIcon />
+      </button>
     </div>
   );
 };

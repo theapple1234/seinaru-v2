@@ -18,28 +18,7 @@ import {
     VEHICLE_CATEGORIES,
     VEHICLE_PERKS
 } from '../constants';
-import type { CompanionOption } from '../types';
-
-// --- TYPE DEFINITIONS ---
-type CompanionSelections = { category: string | null; relationship: string | null; traits: Set<string>; perks: Set<string>; powerLevel: string | null; };
-type WeaponSelections = { category: string | null; perks: Set<string>; traits: Set<string>; };
-type BeastSelections = { category: string | null; size: string | null; perks: Set<string>; traits: Set<string>; };
-type VehicleSelections = { category: string | null; perks: Map<string, number>; };
-
-const initialCompanionSelections: CompanionSelections = { category: null, relationship: null, traits: new Set(), perks: new Set(), powerLevel: null };
-const initialWeaponSelections: WeaponSelections = { category: null, perks: new Set(), traits: new Set() };
-const initialBeastSelections: BeastSelections = { category: null, size: null, perks: new Set(), traits: new Set() };
-const initialVehicleSelections: VehicleSelections = { category: null, perks: new Map() };
-
-const BUILD_TYPES = ['companions', 'weapons', 'beasts', 'vehicles'] as const;
-type BuildType = typeof BUILD_TYPES[number];
-
-type SavedBuildData = { version: number; data: any; };
-type AllBuilds = Record<BuildType, Record<string, SavedBuildData>>;
-
-const initialAllBuilds: AllBuilds = { companions: {}, weapons: {}, beasts: {}, vehicles: {} };
-const STORAGE_KEY = 'seinaru_magecraft_builds';
-
+import type { CompanionOption, CompanionSelections, WeaponSelections, BeastSelections, VehicleSelections, AllBuilds, BuildType, SavedBuildData } from '../types';
 
 // --- SHARED UI COMPONENTS ---
 const ReferenceSection: React.FC<{ title: string, subTitle?: string, children: React.ReactNode }> = ({ title, subTitle, children }) => (
@@ -375,7 +354,19 @@ const VehicleSection: React.FC<{
 };
 
 // --- MAIN PAGE COMPONENT ---
+const initialCompanionSelections: CompanionSelections = { category: null, relationship: null, traits: new Set(), perks: new Set(), powerLevel: null };
+const initialWeaponSelections: WeaponSelections = { category: null, perks: new Set(), traits: new Set() };
+const initialBeastSelections: BeastSelections = { category: null, size: null, perks: new Set(), traits: new Set() };
+const initialVehicleSelections: VehicleSelections = { category: null, perks: new Map() };
+
+const BUILD_TYPES: BuildType[] = ['companions', 'weapons', 'beasts', 'vehicles'];
+
+const initialAllBuilds: AllBuilds = { companions: {}, weapons: {}, beasts: {}, vehicles: {} };
+const STORAGE_KEY = 'seinaru_magecraft_builds';
+
+
 export const ReferencePage: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+    const { fortunePoints, addMiscFpCost } = useCharacterContext();
     const [currentView, setCurrentView] = useState('home');
     const [allBuilds, setAllBuilds] = useState<AllBuilds>(initialAllBuilds);
     const [currentBuild, setCurrentBuild] = useState<{ type: BuildType; name: string } | null>(null);
@@ -472,12 +463,27 @@ export const ReferencePage: React.FC<{ onClose: () => void }> = ({ onClose }) =>
 
         let name = prompt(`Enter a name for your new ${type} build:`);
         if (!name) return;
+        
+        const isOverwrite = !!allBuilds[type]?.[name];
+        const isNewWeaponBuild = type === 'weapons' && !isOverwrite;
 
-        if (allBuilds[type]?.[name]) {
+        if (isNewWeaponBuild) {
+            if (fortunePoints < 5) {
+                alert("You need 5 Fortune Points to save a new weapon build.");
+                return;
+            }
+        }
+        
+        if (isOverwrite) {
             if (!confirm(`A build named "${name}" already exists. Overwrite it?`)) {
                 return;
             }
         }
+        
+        if (isNewWeaponBuild) {
+            addMiscFpCost(5);
+        }
+
         saveBuild(type, name);
     };
 

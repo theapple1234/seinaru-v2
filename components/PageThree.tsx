@@ -57,7 +57,6 @@ const SigilCounter: React.FC<SigilCounterProps> = ({ counts }) => {
   );
 };
 
-
 export const PageThree: React.FC = () => {
     const { 
         selectedBlessingEngraving, handleBlessingEngravingSelect, 
@@ -145,18 +144,22 @@ export const PageThree: React.FC = () => {
                     <SectionHeader>For each Blessing, you can decide where its sigils shall be engraved</SectionHeader>
                     <SectionSubHeader>You can set this individually for each Blessing, but for now, please pick a default location.</SectionSubHeader>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-                        {BLESSING_ENGRAVINGS.map(engraving => (
-                            <BlessingOptionCard
-                                key={engraving.id}
-                                item={engraving}
-                                isSelected={selectedBlessingEngraving === engraving.id}
-                                onSelect={handleBlessingEngravingSelect}
-                            />
-                        ))}
+                        {BLESSING_ENGRAVINGS.map(engraving => {
+                            const isSelected = selectedBlessingEngraving === engraving.id;
+
+                            return (
+                                <BlessingOptionCard
+                                    key={engraving.id}
+                                    item={engraving}
+                                    isSelected={isSelected}
+                                    onSelect={handleBlessingEngravingSelect}
+                                />
+                            );
+                        })}
                     </div>
                 </section>
             </section>
-
+            
             <hr className="border-gray-700 my-24" />
 
             <section id="sigil-purchase-section">

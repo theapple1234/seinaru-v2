@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useCharacterContext } from '../../context/CharacterContext';
-import { STAR_CROSSED_LOVE_DATA, STAR_CROSSED_LOVE_SIGIL_TREE_DATA, STAR_CROSSED_LOVE_PACTS_DATA } from '../../constants';
+import { STAR_CROSSED_LOVE_DATA, STAR_CROSSED_LOVE_SIGIL_TREE_DATA, STAR_CROSSED_LOVE_PACTS_DATA, BLESSING_ENGRAVINGS } from '../../constants';
 import type { StarCrossedLovePact, StarCrossedLoveSigil } from '../../types';
-import { BlessingIntro, SectionHeader, SectionSubHeader } from '../ui';
+import { BlessingIntro, SectionHeader, SectionSubHeader, WeaponIcon } from '../ui';
 import { CompellingWillSigilCard, SigilColor } from '../CompellingWillSigilCard';
 import { ChoiceCard } from '../TraitCard';
+import { WeaponSelectionModal } from '../WeaponSelectionModal';
 
 const sigilImageMap: {[key: string]: string} = { 'kaarn.png': 'kaarn', 'purth.png': 'purth', 'juathas.png': 'juathas', 'xuth.png': 'xuth', 'sinthru.png': 'sinthru', 'lekolu.png': 'lekolu' };
 const getSigilTypeFromImage = (imageSrc: string): keyof typeof sigilImageMap | null => {
@@ -23,7 +24,10 @@ export const StarCrossedLoveSection: React.FC = () => {
         if (ctx.selectedStarCrossedLoveSigils.has(sigil.id)) return false; // Can always deselect
         
         const sigilType = getSigilTypeFromImage(sigil.imageSrc);
-        if (sigilType && ctx.availableSigilCounts[sigilType as keyof typeof ctx.availableSigilCounts] < 1) return true;
+        const sigilCost = sigilType ? 1 : 0;
+        if (sigilType && ctx.availableSigilCounts[sigilType] < sigilCost) return true;
+
+        if (sigil.id === 'dual_loyalty' && !ctx.selectedStarCrossedLoveSigils.has('sworn_fealty')) return true;
 
         return false;
     };
@@ -48,6 +52,7 @@ export const StarCrossedLoveSection: React.FC = () => {
     return (
         <section>
             <BlessingIntro {...STAR_CROSSED_LOVE_DATA} />
+            
             <div className="my-16 bg-black/20 p-8 rounded-lg border border-gray-800">
                 <SectionHeader>SIGIL TREE</SectionHeader>
                 <div className="flex flex-col items-center gap-4">
@@ -56,7 +61,7 @@ export const StarCrossedLoveSection: React.FC = () => {
                     </div>
                     <div className="h-8 w-px bg-gray-600"></div>
                     <div className="flex gap-24">
-                        <CompellingWillSigilCard sigil={getStarCrossedLoveSigil('dual_loyalty')} isSelected={ctx.selectedStarCrossedLoveSigils.has('dual_loyalty')} isDisabled={ctx.selectedStarCrossedLoveSigils.size === 0 || isStarCrossedLoveSigilDisabled(getStarCrossedLoveSigil('dual_loyalty'))} onSelect={ctx.handleStarCrossedLoveSigilSelect} benefitsContent={getSigilDisplayInfo(getStarCrossedLoveSigil('dual_loyalty')).benefits} color={getSigilDisplayInfo(getStarCrossedLoveSigil('dual_loyalty')).color} />
+                        <CompellingWillSigilCard sigil={getStarCrossedLoveSigil('dual_loyalty')} isSelected={ctx.selectedStarCrossedLoveSigils.has('dual_loyalty')} isDisabled={isStarCrossedLoveSigilDisabled(getStarCrossedLoveSigil('dual_loyalty'))} onSelect={ctx.handleStarCrossedLoveSigilSelect} benefitsContent={getSigilDisplayInfo(getStarCrossedLoveSigil('dual_loyalty')).benefits} color={getSigilDisplayInfo(getStarCrossedLoveSigil('dual_loyalty')).color} />
                     </div>
                 </div>
             </div>

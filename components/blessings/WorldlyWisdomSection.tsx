@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useCharacterContext } from '../../context/CharacterContext';
-import { WORLDLY_WISDOM_DATA, WORLDLY_WISDOM_SIGIL_TREE_DATA, ELEANORS_TECHNIQUES_DATA, GENEVIEVES_TECHNIQUES_DATA } from '../../constants';
+import { WORLDLY_WISDOM_DATA, WORLDLY_WISDOM_SIGIL_TREE_DATA, ELEANORS_TECHNIQUES_DATA, GENEVIEVES_TECHNIQUES_DATA, BLESSING_ENGRAVINGS } from '../../constants';
 import type { WorldlyWisdomPower, WorldlyWisdomSigil } from '../../types';
-import { BlessingIntro, SectionHeader, SectionSubHeader } from '../ui';
+import { BlessingIntro, SectionHeader, SectionSubHeader, WeaponIcon } from '../ui';
 import { CompellingWillSigilCard, SigilColor } from '../CompellingWillSigilCard';
 import { ChoiceCard } from '../TraitCard';
+import { WeaponSelectionModal } from '../WeaponSelectionModal';
 
 const sigilImageMap: {[key: string]: string} = { 'kaarn.png': 'kaarn', 'purth.png': 'purth', 'juathas.png': 'juathas', 'xuth.png': 'xuth', 'sinthru.png': 'sinthru', 'lekolu.png': 'lekolu' };
 const getSigilTypeFromImage = (imageSrc: string): keyof typeof sigilImageMap | null => {
@@ -14,15 +15,29 @@ const getSigilTypeFromImage = (imageSrc: string): keyof typeof sigilImageMap | n
 
 export const WorldlyWisdomSection: React.FC = () => {
     const ctx = useCharacterContext();
+    const [isWeaponModalOpen, setIsWeaponModalOpen] = useState(false);
+    const {
+        selectedBlessingEngraving,
+        worldlyWisdomEngraving,
+        handleWorldlyWisdomEngravingSelect,
+        worldlyWisdomWeaponName,
+        handleWorldlyWisdomWeaponAssign,
+    } = useCharacterContext();
+
 
     const isWorldlyWisdomPowerDisabled = (power: WorldlyWisdomPower, type: 'eleanor' | 'genevieve'): boolean => {
+      const allSelectedSigils = ctx.selectedWorldlyWisdomSigils;
       if (type === 'eleanor') {
-        if (!ctx.selectedEleanorsTechniques.has(power.id) && ctx.selectedEleanorsTechniques.size >= ctx.availableEleanorsPicks) return true;
-        if (power.specialRequirement === 'requires_3_eleanor' && ctx.selectedEleanorsTechniques.size < 3) return true;
-        if (power.requires && !power.requires.every(req => ctx.selectedEleanorsTechniques.has(req))) return true;
+        const selectedSet = ctx.selectedEleanorsTechniques;
+        if (!selectedSet.has(power.id) && selectedSet.size >= ctx.availableEleanorsPicks) return true;
+        if (power.requires && !power.requires.every(req => selectedSet.has(req))) return true;
+        if (power.specialRequirement === 'requires_3_eleanor') {
+            if (!selectedSet.has(power.id) && selectedSet.size < 3) return true;
+        }
       } else { // genevieve
-        if (!ctx.selectedGenevievesTechniques.has(power.id) && ctx.selectedGenevievesTechniques.size >= ctx.availableGenevievesPicks) return true;
-        if (power.requires && !power.requires.every(req => ctx.selectedWorldlyWisdomSigils.has(req))) return true;
+        const selectedSet = ctx.selectedGenevievesTechniques;
+        if (!selectedSet.has(power.id) && selectedSet.size >= ctx.availableGenevievesPicks) return true;
+        if (power.requires && !power.requires.every(req => allSelectedSigils.has(req))) return true;
       }
       return false;
     };
@@ -32,7 +47,8 @@ export const WorldlyWisdomSection: React.FC = () => {
         if (!sigil.prerequisites.every(p => ctx.selectedWorldlyWisdomSigils.has(p))) return true;
 
         const sigilType = getSigilTypeFromImage(sigil.imageSrc);
-        if (sigilType && ctx.availableSigilCounts[sigilType as keyof typeof ctx.availableSigilCounts] < 1) return true;
+        const sigilCost = sigilType ? 1 : 0;
+        if (sigilType && ctx.availableSigilCounts[sigilType] < sigilCost) return true;
 
         return false;
     };
@@ -75,6 +91,58 @@ export const WorldlyWisdomSection: React.FC = () => {
     return (
         <section>
             <BlessingIntro {...WORLDLY_WISDOM_DATA} />
+            <div className="mt-8 mb-16 max-w-3xl mx-auto">
+                <h4 className="font-cinzel text-xl text-center tracking-widest my-6 text-purple-300 uppercase">
+                    Engrave this Blessing
+                </h4>
+                <div className="grid grid-cols-3 gap-4">
+                    {BLESSING_ENGRAVINGS.map(engraving => {
+                        const finalEngraving = worldlyWisdomEngraving ?? selectedBlessingEngraving;
+                        const isSelected = finalEngraving === engraving.id;
+                        const isOverridden = worldlyWisdomEngraving !== null;
+                        const isWeapon = engraving.id === 'weapon';
+
+                        return (
+                             <div key={engraving.id} className="relative">
+                                <button
+                                    onClick={() => handleWorldlyWisdomEngravingSelect(engraving.id)}
+                                    className={`w-full p-4 rounded-lg border-2 transition-colors flex flex-col items-center justify-center h-full text-center
+                                        ${isSelected 
+                                            ? (isOverridden ? 'border-purple-400 bg-purple-900/40' : 'border-purple-600/50 bg-purple-900/20') 
+                                            : 'border-gray-700 bg-black/30 hover:border-purple-400/50'}
+                                    `}
+                                >
+                                    <span className="font-cinzel tracking-wider uppercase">{engraving.title}</span>
+                                    {isWeapon && isSelected && worldlyWisdomWeaponName && (
+                                        <p className="text-xs text-purple-300 mt-2 truncate">({worldlyWisdomWeaponName})</p>
+                                    )}
+                                </button>
+                                {isWeapon && isSelected && (
+                                    <button
+                                        onClick={() => setIsWeaponModalOpen(true)}
+                                        className="absolute top-2 right-2 p-2 rounded-full bg-purple-900/50 text-purple-200/70 hover:bg-purple-800/60 hover:text-purple-100 transition-colors z-10"
+                                        aria-label="Change Weapon"
+                                        title="Change Weapon"
+                                    >
+                                        <WeaponIcon />
+                                    </button>
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+
+            {isWeaponModalOpen && (
+                <WeaponSelectionModal
+                    onClose={() => setIsWeaponModalOpen(false)}
+                    onSelect={(weaponName) => {
+                        handleWorldlyWisdomWeaponAssign(weaponName);
+                        setIsWeaponModalOpen(false);
+                    }}
+                    currentWeaponName={worldlyWisdomWeaponName}
+                />
+            )}
             <div className="my-16 bg-black/20 p-8 rounded-lg border border-gray-800">
                 <SectionHeader>SIGIL TREE</SectionHeader>
                 <div className="flex flex-col items-center gap-4">
