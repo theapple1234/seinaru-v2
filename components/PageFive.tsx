@@ -1,22 +1,33 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { useCharacterContext } from '../context/CharacterContext';
 import { 
     CAREER_INTRO_DATA, ALLMILLOR_INTRO_DATA, ALLMILLOR_CHOICES_DATA, 
-    CAREER_GOALS_DATA, COLLEAGUES_DATA, CUSTOM_COLLEAGUE_CHOICES_DATA, DOMINIONS 
+    CAREER_GOALS_DATA, COLLEAGUES_DATA, CUSTOM_COLLEAGUE_CHOICES_DATA, DOMINIONS,
+    UNIFORMS_DATA
 } from '../constants';
-import { SectionHeader, SectionSubHeader } from './ui';
+import { SectionHeader, SectionSubHeader, CompanionIcon } from './ui';
 import { ChoiceCard } from './TraitCard';
-import type { ChoiceItem, Colleague, CustomColleagueOption } from '../types';
+import type { ChoiceItem, Colleague, CustomColleagueInstance } from '../types';
+import { CompanionSelectionModal } from './SigilTreeOptionCard';
+import { UniformSelectionModal } from './UniformSelectionModal';
 
+const UniformIcon: React.FC = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+        <path d="M17.293 3.293A1 1 0 0118 4v12a1 1 0 01-1 1H3a1 1 0 01-1-1V4a1 1 0 011-1h1.293l.94-1.566A1 1 0 016.133 2h7.734a1 1 0 01.894.434L15.707 3H17.293zM10 8a3 3 0 100 6 3 3 0 000-6z" />
+        <path d="M4 4h2l-1-2-1 2zM14 4h2l-1-2-1 2z" />
+    </svg>
+);
 
 interface ColleagueCardProps {
   colleague: Colleague;
   isSelected: boolean;
   onSelect: (id: string) => void;
   disabled?: boolean;
+  uniformName?: string;
+  onUniformButtonClick: () => void;
 }
 
-const ColleagueCard: React.FC<ColleagueCardProps> = ({ colleague, isSelected, onSelect, disabled = false }) => {
+const ColleagueCard: React.FC<ColleagueCardProps> = ({ colleague, isSelected, onSelect, disabled = false, uniformName, onUniformButtonClick }) => {
   const { id, name, cost, description, imageSrc, birthplace, signature, otherPowers } = colleague;
 
   const isGain = cost.toLowerCase().includes('grants');
@@ -28,9 +39,14 @@ const ColleagueCard: React.FC<ColleagueCardProps> = ({ colleague, isSelected, on
     ? 'opacity-50 cursor-not-allowed'
     : 'cursor-pointer hover:border-green-300/70 transition-colors';
 
+  const handleUniformClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onUniformButtonClick();
+  };
+
   return (
     <div
-      className={`flex flex-col md:flex-row p-4 bg-black/30 border rounded-lg h-full gap-4 ${interactionClass} ${borderClass}`}
+      className={`relative flex flex-col md:flex-row p-4 bg-black/30 border rounded-lg h-full gap-4 ${interactionClass} ${borderClass}`}
       onClick={() => !disabled && onSelect(id)}
       role="button"
       tabIndex={disabled ? -1 : 0}
@@ -48,56 +64,22 @@ const ColleagueCard: React.FC<ColleagueCardProps> = ({ colleague, isSelected, on
               <p><strong className="text-gray-200 font-semibold">Birthplace:</strong> {birthplace}</p>
               <p><strong className="text-gray-200 font-semibold">Signature:</strong> {signature}</p>
               <p><strong className="text-gray-200 font-semibold">Other Powers:</strong> {otherPowers}</p>
+              <p><strong className="text-gray-200 font-semibold">Uniform:</strong> {uniformName || 'Unidentified'}</p>
           </div>
         </div>
       </div>
+       <button 
+        onClick={handleUniformClick}
+        className="absolute top-2 right-2 p-2 rounded-full bg-black/50 text-green-200/70 hover:bg-green-900/50 hover:text-green-100 transition-colors z-10"
+        aria-label={`Change ${name}'s uniform`}
+        title="Change Uniform"
+        disabled={disabled}
+      >
+        <UniformIcon />
+      </button>
     </div>
   );
 };
-
-interface CustomColleagueCardProps {
-    options: CustomColleagueOption[];
-    selectedOptionId: string | null;
-    onSelect: (id: string) => void;
-}
-
-const CustomColleagueCard: React.FC<CustomColleagueCardProps> = ({ options, selectedOptionId, onSelect }) => {
-    return (
-        <div className="flex flex-col md:flex-row p-4 bg-black/30 border border-gray-800 rounded-lg h-full gap-4">
-             <img src="https://saviapple.neocities.org/Seinaru_Magecraft_Girls/img/Pg6/c25.png" alt="Custom Colleague" className="w-full md:w-48 h-64 md:h-auto object-cover rounded-md flex-shrink-0" />
-             <div className="flex flex-col flex-grow">
-                <div className="text-center md:text-left">
-                    <h4 className="font-bold font-cinzel text-white text-xl">CREATE YOUR OWN</h4>
-                </div>
-                <div className="text-sm text-gray-300 mt-3 text-left flex-grow flex flex-col">
-                    <p className="leading-relaxed flex-grow">
-                        Same as last time, if none of the options above suffice (or you're playing Multiplayer), you can create your own colleague!
-                    </p>
-                    <div className="flex flex-col gap-3 justify-end mt-4">
-                        {options.map(option => {
-                            const isSelected = selectedOptionId === option.id;
-                            const isGain = option.cost.toLowerCase().includes('grants');
-                            const costColor = isGain ? 'text-green-400' : 'text-red-400';
-                            const borderClass = isSelected ? 'border-green-400 ring-2 ring-green-400' : 'border-gray-700 hover:border-green-300/70';
-
-                            return (
-                                <div 
-                                    key={option.id}
-                                    onClick={() => onSelect(option.id)}
-                                    className={`p-3 bg-gray-900/50 border rounded-md cursor-pointer transition-colors ${borderClass}`}
-                                >
-                                    <p className={`font-semibold text-xs text-center ${costColor}`}>{option.cost.toUpperCase()}</p>
-                                    <p className="text-xs text-center text-gray-400">{option.description}</p>
-                                </div>
-                            );
-                        })}
-                    </div>
-                </div>
-             </div>
-        </div>
-    );
-};
-
 
 export const PageFive: React.FC = () => {
     const { 
@@ -109,11 +91,49 @@ export const PageFive: React.FC = () => {
         selectedMiscActivityIds,
         selectedColleagueIds, 
         handleColleagueSelect,
-        customColleagueChoice,
-        handleCustomColleagueChoice,
         selectedDominionId,
-        isMultiplayer
+        isMultiplayer,
+        joysOfParentingCompanionName,
+        handleJoysOfParentingCompanionAssign,
+        colleagueUniforms,
+        handleColleagueUniformSelect,
+        customColleagues,
+        handleAddCustomColleague,
+        handleRemoveCustomColleague,
+        assigningColleague,
+        handleOpenAssignColleagueModal,
+        handleCloseAssignColleagueModal,
+        handleAssignCustomColleagueName,
     } = useCharacterContext();
+
+    const [isJoysOfParentingModalOpen, setIsJoysOfParentingModalOpen] = useState(false);
+    const [uniformModalState, setUniformModalState] = useState<{
+        isOpen: boolean;
+        colleagueId: string | null;
+        colleagueName: string | null;
+    }>({ isOpen: false, colleagueId: null, colleagueName: null });
+
+    const pointLimit = useMemo(() => {
+        if (!assigningColleague) return 0;
+        return assigningColleague.optionId === 'custom_colleague_25' ? 25 :
+               assigningColleague.optionId === 'custom_colleague_35' ? 35 :
+               assigningColleague.optionId === 'custom_colleague_50' ? 50 : 0;
+    }, [assigningColleague]);
+
+    const handleOpenUniformModal = (colleagueId: string, colleagueName: string) => {
+        setUniformModalState({ isOpen: true, colleagueId, colleagueName });
+    };
+
+    const handleCloseUniformModal = () => {
+        setUniformModalState({ isOpen: false, colleagueId: null, colleagueName: null });
+    };
+
+    const handleSelectUniformInModal = (uniformId: string) => {
+        if (uniformModalState.colleagueId) {
+            handleColleagueUniformSelect(uniformModalState.colleagueId, uniformId);
+        }
+        handleCloseUniformModal();
+    };
 
     const isGoalDisabled = (goal: ChoiceItem): boolean => {
         if (!goal.requires) return false;
@@ -215,16 +235,30 @@ export const PageFive: React.FC = () => {
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                    {CAREER_GOALS_DATA.finishingTouches.map(goal => (
-                        <ChoiceCard
-                            key={goal.id}
-                            item={goal}
-                            isSelected={selectedCareerGoalIds.has(goal.id)}
-                            onSelect={handleCareerGoalSelect}
-                            disabled={isGoalDisabled(goal)}
-                            selectionColor="green"
-                        />
-                    ))}
+                    {CAREER_GOALS_DATA.finishingTouches.map(goal => {
+                        const isJoysOfParenting = goal.id === 'joys_of_parenting';
+                        const isSelected = selectedCareerGoalIds.has(goal.id);
+
+                        return (
+                            <ChoiceCard
+                                key={goal.id}
+                                item={goal}
+                                isSelected={isSelected}
+                                onSelect={handleCareerGoalSelect}
+                                disabled={isGoalDisabled(goal)}
+                                selectionColor="green"
+                                iconButton={isJoysOfParenting && isSelected ? <CompanionIcon /> : undefined}
+                                onIconButtonClick={isJoysOfParenting && isSelected ? () => setIsJoysOfParentingModalOpen(true) : undefined}
+                            >
+                                {isJoysOfParenting && isSelected && joysOfParentingCompanionName && (
+                                    <div className="text-center mt-2">
+                                        <p className="text-xs text-gray-400">Assigned Child:</p>
+                                        <p className="text-sm font-bold text-green-300">{joysOfParentingCompanionName}</p>
+                                    </div>
+                                )}
+                            </ChoiceCard>
+                        );
+                    })}
                 </div>
             </section>
 
@@ -235,22 +269,120 @@ export const PageFive: React.FC = () => {
                 </SectionSubHeader>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {COLLEAGUES_DATA.map(colleague => (
-                        <ColleagueCard 
-                            key={colleague.id} 
-                            colleague={{ ...colleague, cost: getAdjustedCost(colleague) }} 
-                            isSelected={selectedColleagueIds.has(colleague.id)} 
-                            onSelect={handleColleagueSelect}
-                            disabled={isMultiplayer}
+                    {COLLEAGUES_DATA.map(colleague => {
+                        const selectedUniformId = colleagueUniforms.get(colleague.id);
+                        const uniform = UNIFORMS_DATA.find(u => u.id === selectedUniformId);
+
+                        return (
+                            <ColleagueCard 
+                                key={colleague.id} 
+                                colleague={{ ...colleague, cost: getAdjustedCost(colleague) }} 
+                                isSelected={selectedColleagueIds.has(colleague.id)} 
+                                onSelect={handleColleagueSelect}
+                                disabled={isMultiplayer}
+                                uniformName={uniform?.title}
+                                onUniformButtonClick={() => handleOpenUniformModal(colleague.id, colleague.name)}
+                            />
+                        );
+                    })}
+                </div>
+                <div className="mt-8">
+                    <div className="relative flex flex-row items-start p-6 bg-black/40 border border-green-800/60 rounded-lg gap-6">
+                        <img 
+                            src="https://saviapple.neocities.org/Seinaru_Magecraft_Girls/img/Pg6/c25.png"
+                            alt="Create your own companion" 
+                            className="w-2/5 sm:w-1/3 aspect-[4/3] object-cover object-left rounded-md flex-shrink-0"
                         />
-                    ))}
-                    <CustomColleagueCard 
-                        options={CUSTOM_COLLEAGUE_CHOICES_DATA}
-                        selectedOptionId={customColleagueChoice}
-                        onSelect={handleCustomColleagueChoice}
-                    />
+                        <div className="flex flex-col flex-grow">
+                            <p className="text-gray-300 text-sm leading-relaxed mb-4">
+                                If you have something specific in mind you're after, you may want to create your own companion! If you spend -4 FP, you can create a companion with 25 Companion Points on the Reference page; if you spend -6 FP, you are given 35 Companion Points instead; and if you spend -8 FP, you are given 50 Companion Points.
+                            </p>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                {CUSTOM_COLLEAGUE_CHOICES_DATA.map(option => (
+                                    <div 
+                                        key={option.id}
+                                        onClick={() => handleAddCustomColleague(option.id)}
+                                        className="relative p-4 bg-gray-900/50 border border-gray-700 rounded-md cursor-pointer transition-colors hover:border-green-300/70 text-center"
+                                        role="button"
+                                        tabIndex={0}
+                                        aria-label={`Add a ${option.description}`}
+                                    >
+                                        <div
+                                            className="absolute top-1 right-1 p-1 text-green-200/50"
+                                            aria-hidden="true"
+                                        >
+                                            <CompanionIcon />
+                                        </div>
+                                        <p className="font-semibold text-sm text-red-400">{option.cost.toUpperCase()}</p>
+                                        <p className="text-sm text-gray-400 mt-1">{option.description}</p>
+                                    </div>
+                                ))}
+                            </div>
+                            {customColleagues.length > 0 && (
+                                <div className="mt-4 pt-4 border-t border-green-800/30 space-y-2">
+                                    <h4 className="font-cinzel text-green-200 tracking-wider">Your Custom Colleagues</h4>
+                                    {customColleagues.map(c => {
+                                        const optionData = CUSTOM_COLLEAGUE_CHOICES_DATA.find(opt => opt.id === c.optionId);
+                                        return (
+                                            <div key={c.id} className="bg-black/20 p-2 rounded-md flex justify-between items-center">
+                                                <div className="flex items-center gap-3">
+                                                    <button onClick={() => handleRemoveCustomColleague(c.id)} className="text-red-500 hover:text-red-400 text-xl font-bold px-2" title="Remove Companion Slot">&times;</button>
+                                                    <div>
+                                                        <p className="text-sm font-semibold text-white">{optionData?.description}</p>
+                                                        <p className="text-xs text-gray-400">Assigned: <span className="font-bold text-green-300">{c.companionName || 'None'}</span></p>
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    onClick={() => handleOpenAssignColleagueModal(c)}
+                                                    className="p-2 rounded-full bg-black/50 text-green-200/70 hover:bg-green-900/50 hover:text-green-100 transition-colors"
+                                                    title="Assign Companion"
+                                                >
+                                                    <CompanionIcon />
+                                                </button>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                    </div>
                 </div>
             </section>
+
+            {isJoysOfParentingModalOpen && (
+                <CompanionSelectionModal
+                    currentCompanionName={joysOfParentingCompanionName}
+                    onClose={() => setIsJoysOfParentingModalOpen(false)}
+                    onSelect={(name) => {
+                        handleJoysOfParentingCompanionAssign(name);
+                        setIsJoysOfParentingModalOpen(false);
+                    }}
+                    pointLimit={50}
+                    title="Assign Your Mage Child"
+                    categoryFilter="mage"
+                />
+            )}
+            {uniformModalState.isOpen && uniformModalState.colleagueId && uniformModalState.colleagueName && (
+                <UniformSelectionModal
+                    classmateName={uniformModalState.colleagueName}
+                    currentUniformId={colleagueUniforms.get(uniformModalState.colleagueId)}
+                    onClose={handleCloseUniformModal}
+                    onSelect={handleSelectUniformInModal}
+                />
+            )}
+            {assigningColleague && (
+                <CompanionSelectionModal
+                    currentCompanionName={assigningColleague.companionName}
+                    onClose={handleCloseAssignColleagueModal}
+                    onSelect={(name) => {
+                        handleAssignCustomColleagueName(assigningColleague.id, name);
+                        handleCloseAssignColleagueModal();
+                    }}
+                    pointLimit={pointLimit}
+                    title={`Assign Custom Colleague (${pointLimit} CP)`}
+                    categoryFilter="mage"
+                />
+            )}
         </>
     );
 };

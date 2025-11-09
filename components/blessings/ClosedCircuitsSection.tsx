@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { useCharacterContext } from '../../context/CharacterContext';
 import { MARGRA_DATA, CLOSED_CIRCUITS_DATA, CLOSED_CIRCUITS_SIGIL_TREE_DATA, NET_AVATAR_DATA, TECHNOMANCY_DATA, NANITE_CONTROL_DATA, BLESSING_ENGRAVINGS } from '../../constants';
-import type { ClosedCircuitsPower, ClosedCircuitsSigil } from '../../types';
-import { BlessingIntro, SectionHeader, SectionSubHeader, WeaponIcon } from '../ui';
+import type { ClosedCircuitsPower, ClosedCircuitsSigil, ChoiceItem } from '../../types';
+import { BlessingIntro, SectionHeader, SectionSubHeader, WeaponIcon, CompanionIcon } from '../ui';
 import { CompellingWillSigilCard, SigilColor } from '../CompellingWillSigilCard';
-import { ChoiceCard } from '../TraitCard';
 import { WeaponSelectionModal } from '../WeaponSelectionModal';
+import { BeastSelectionModal } from '../BeastSelectionModal';
 
 const sigilImageMap: {[key: string]: string} = { 'kaarn.png': 'kaarn', 'purth.png': 'purth', 'juathas.png': 'juathas', 'xuth.png': 'xuth', 'sinthru.png': 'sinthru', 'lekolu.png': 'lekolu' };
 const getSigilTypeFromImage = (imageSrc: string): keyof typeof sigilImageMap | null => {
@@ -13,15 +13,69 @@ const getSigilTypeFromImage = (imageSrc: string): keyof typeof sigilImageMap | n
     return null;
 }
 
+const PowerCard: React.FC<{
+    power: ChoiceItem;
+    isSelected: boolean;
+    isDisabled: boolean;
+    onToggle: (id: string) => void;
+    children?: React.ReactNode;
+    iconButton?: React.ReactNode;
+    onIconButtonClick?: () => void;
+}> = ({ power, isSelected, isDisabled, onToggle, children, iconButton, onIconButtonClick }) => {
+    const wrapperClass = `bg-black/40 backdrop-blur-sm p-4 rounded-xl border flex flex-col text-center transition-all h-full ${
+        isSelected
+        ? 'border-purple-400 ring-2 ring-purple-400/50'
+        : isDisabled
+            ? 'opacity-50 cursor-not-allowed border-gray-800'
+            : 'border-white/10 hover:border-purple-400/70 cursor-pointer'
+    }`;
+
+    const handleIconClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        onIconButtonClick?.();
+    };
+    
+    return (
+        <div className={`${wrapperClass} relative`} onClick={() => !isDisabled && onToggle(power.id)}>
+            {iconButton && onIconButtonClick && isSelected && (
+                <button
+                    onClick={handleIconClick}
+                    className="absolute top-2 right-2 p-2 rounded-full bg-purple-900/50 text-purple-200/70 hover:bg-purple-800/60 hover:text-purple-100 transition-colors z-10"
+                    aria-label="Card action"
+                >
+                    {iconButton}
+                </button>
+            )}
+            <img src={power.imageSrc} alt={power.title} className="w-full h-40 rounded-md mb-4 object-cover" />
+            <h4 className="font-cinzel font-bold text-white tracking-wider text-xl">{power.title}</h4>
+            {power.cost && <p className="text-xs text-yellow-300/70 italic mt-1">{power.cost}</p>}
+            <div className="w-16 h-px bg-white/10 mx-auto my-2"></div>
+            <p className="text-xs text-gray-400 leading-relaxed flex-grow text-left whitespace-pre-wrap">{power.description}</p>
+            {children && (
+                 <div className="mt-4 pt-4 border-t border-gray-700/50">
+                    {children}
+                 </div>
+            )}
+        </div>
+    );
+};
+
 export const ClosedCircuitsSection: React.FC = () => {
     const ctx = useCharacterContext();
     const [isWeaponModalOpen, setIsWeaponModalOpen] = useState(false);
+    const [isNaniteFormModalOpen, setIsNaniteFormModalOpen] = useState(false);
+    const [isHeavilyArmedModalOpen, setIsHeavilyArmedModalOpen] = useState(false);
+
     const {
         selectedBlessingEngraving,
         closedCircuitsEngraving,
         handleClosedCircuitsEngravingSelect,
         closedCircuitsWeaponName,
         handleClosedCircuitsWeaponAssign,
+        heavilyArmedWeaponName,
+        handleHeavilyArmedWeaponAssign,
+        naniteFormBeastName,
+        handleNaniteFormBeastAssign,
     } = useCharacterContext();
 
     const isClosedCircuitsPowerDisabled = (power: ClosedCircuitsPower, type: 'netAvatar' | 'technomancy' | 'naniteControl'): boolean => {
@@ -50,7 +104,6 @@ export const ClosedCircuitsSection: React.FC = () => {
     const getClosedCircuitsSigil = (id: string) => CLOSED_CIRCUITS_SIGIL_TREE_DATA.find(s => s.id === id)!;
     
     const getSigilDisplayInfo = (sigil: ClosedCircuitsSigil): { color: SigilColor, benefits: React.ReactNode } => {
-        // FIX: Explicitly type colorMap to ensure color is inferred as SigilColor, not string.
         const colorMap: Record<string, SigilColor> = {
             'SCRIPT KIDDY': 'orange', 'KYROTIK ARMOR™': 'yellow', 'EZ-HACK™': 'yellow',
             'HEAVY DUTY': 'green', 'L33T H4XXOR': 'green', 'HACKER I': 'gray',
@@ -143,6 +196,18 @@ export const ClosedCircuitsSection: React.FC = () => {
                     currentWeaponName={closedCircuitsWeaponName}
                 />
             )}
+            {isHeavilyArmedModalOpen && (
+                <WeaponSelectionModal
+                    onClose={() => setIsHeavilyArmedModalOpen(false)}
+                    onSelect={(weaponName) => {
+                        handleHeavilyArmedWeaponAssign(weaponName);
+                        setIsHeavilyArmedModalOpen(false);
+                    }}
+                    currentWeaponName={heavilyArmedWeaponName}
+                    pointLimit={ctx.isNaniteControlBoosted ? 40 : 30}
+                    title="Assign Heavily Armed Weapon"
+                />
+            )}
             <div className="my-16 bg-black/20 p-8 rounded-lg border border-gray-800">
                 <SectionHeader>SIGIL TREE</SectionHeader>
                 <div className="flex flex-col items-center gap-4">
@@ -172,7 +237,7 @@ export const ClosedCircuitsSection: React.FC = () => {
                 <SectionHeader>NET AVATAR</SectionHeader>
                 <SectionSubHeader>Picks Available: {ctx.availableNetAvatarPicks - ctx.selectedNetAvatars.size} / {ctx.availableNetAvatarPicks}</SectionSubHeader>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    {NET_AVATAR_DATA.map(power => <ChoiceCard key={power.id} item={{...power, cost: ''}} isSelected={ctx.selectedNetAvatars.has(power.id)} onSelect={ctx.handleNetAvatarSelect} disabled={isClosedCircuitsPowerDisabled(power, 'netAvatar')} selectionColor="amber" />)}
+                    {NET_AVATAR_DATA.map(power => <PowerCard key={power.id} power={{...power, cost: ''}} isSelected={ctx.selectedNetAvatars.has(power.id)} onToggle={ctx.handleNetAvatarSelect} isDisabled={isClosedCircuitsPowerDisabled(power, 'netAvatar')} />)}
                 </div>
             </div>
             <div className="mt-16 px-4 lg:px-8">
@@ -190,7 +255,7 @@ export const ClosedCircuitsSection: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                     {TECHNOMANCY_DATA.map(power => {
                         const boostedText = ctx.isTechnomancyBoosted && boostDescriptions[power.id] ? `\n\nBOOSTED: ${boostDescriptions[power.id]}` : '';
-                        return <ChoiceCard key={power.id} item={{...power, cost: '', description: power.description + boostedText}} isSelected={ctx.selectedTechnomancies.has(power.id)} onSelect={ctx.handleTechnomancySelect} disabled={isClosedCircuitsPowerDisabled(power, 'technomancy')} selectionColor="amber" />
+                        return <PowerCard key={power.id} power={{...power, cost: '', description: power.description + boostedText}} isSelected={ctx.selectedTechnomancies.has(power.id)} onToggle={ctx.handleTechnomancySelect} isDisabled={isClosedCircuitsPowerDisabled(power, 'technomancy')} />
                     })}
                 </div>
             </div>
@@ -215,14 +280,38 @@ export const ClosedCircuitsSection: React.FC = () => {
 
                         const renderPower = (power: ClosedCircuitsPower) => {
                             const boostedText = ctx.isNaniteControlBoosted && boostDescriptions[power.id] ? `\n\nBOOSTED: ${boostDescriptions[power.id]}` : '';
-                             return <ChoiceCard 
+                            const isNaniteForm = power.id === 'nanite_form';
+                            const isHeavilyArmed = power.id === 'heavily_armed';
+                            const isSelected = ctx.selectedNaniteControls.has(power.id);
+
+                             return <PowerCard 
                                 key={power.id} 
-                                item={{...power, cost: '', description: power.description + boostedText}} 
-                                isSelected={ctx.selectedNaniteControls.has(power.id)} 
-                                onSelect={ctx.handleNaniteControlSelect} 
-                                disabled={isClosedCircuitsPowerDisabled(power, 'naniteControl')} 
-                                selectionColor="amber" 
-                            />
+                                power={{...power, cost: '', description: power.description + boostedText}} 
+                                isSelected={isSelected} 
+                                onToggle={ctx.handleNaniteControlSelect} 
+                                isDisabled={isClosedCircuitsPowerDisabled(power, 'naniteControl')} 
+                                iconButton={
+                                    (isNaniteForm && isSelected) ? <CompanionIcon /> :
+                                    (isHeavilyArmed && isSelected) ? <WeaponIcon /> : undefined
+                                }
+                                onIconButtonClick={
+                                    (isNaniteForm && isSelected) ? () => setIsNaniteFormModalOpen(true) :
+                                    (isHeavilyArmed && isSelected) ? () => setIsHeavilyArmedModalOpen(true) : undefined
+                                }
+                             >
+                                 {isNaniteForm && isSelected && naniteFormBeastName && (
+                                    <div className="text-center">
+                                        <p className="text-xs text-gray-400">Assigned Form:</p>
+                                        <p className="text-sm font-bold text-amber-300">{naniteFormBeastName}</p>
+                                    </div>
+                                )}
+                                {isHeavilyArmed && isSelected && heavilyArmedWeaponName && (
+                                    <div className="text-center">
+                                        <p className="text-xs text-gray-400">Assigned Weapon:</p>
+                                        <p className="text-sm font-bold text-cyan-300">{heavilyArmedWeaponName}</p>
+                                    </div>
+                                )}
+                             </PowerCard>
                         };
 
                         return (
@@ -239,6 +328,20 @@ export const ClosedCircuitsSection: React.FC = () => {
                     })()}
                 </div>
             </div>
+            {isNaniteFormModalOpen && (
+                <BeastSelectionModal
+                    onClose={() => setIsNaniteFormModalOpen(false)}
+                    onSelect={(name) => {
+                        handleNaniteFormBeastAssign(name);
+                        setIsNaniteFormModalOpen(false);
+                    }}
+                    currentBeastName={naniteFormBeastName}
+                    pointLimit={40}
+                    title="Assign Nanite Form"
+                    categoryFilter="humanoid"
+                    excludedPerkIds={['chatterbox_beast', 'magical_beast']}
+                />
+            )}
         </section>
     );
 };

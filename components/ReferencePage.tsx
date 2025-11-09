@@ -95,7 +95,6 @@ const CompanionSection: React.FC<{
     selections: CompanionSelections;
     setSelections: React.Dispatch<React.SetStateAction<CompanionSelections>>;
 }> = ({ setPoints, selections, setSelections }) => {
-    const { isBlessed, isPuppeteer, isRoboticist, isNecromancer } = { isBlessed: true, isPuppeteer: false, isRoboticist: false, isNecromancer: false };
 
     useEffect(() => {
         let total = 0;
@@ -126,13 +125,6 @@ const CompanionSection: React.FC<{
     };
 
     const isCategoryDisabled = (item: CompanionOption) => {
-        if (isBlessed && item.id !== 'mage') return true;
-        if (isPuppeteer && item.id !== 'puppet') return true;
-        if (isRoboticist && item.id !== 'automaton') return true;
-        if (isNecromancer && item.id !== 'undead') return true;
-        if (item.id === 'puppet' && !isPuppeteer) return true;
-        if (item.id === 'automaton' && !isRoboticist) return true;
-        if (item.id === 'undead' && !isNecromancer) return true;
         return false;
     }
     
@@ -519,6 +511,10 @@ export const ReferencePage: React.FC<{ onClose: () => void }> = ({ onClose }) =>
 
     const handleDeleteBuild = (type: BuildType, name: string) => {
         if (confirm(`Are you sure you want to delete the build "${name}"? This cannot be undone.`)) {
+            // Refund 5 FP if a weapon build is deleted
+            if (type === 'weapons') {
+                addMiscFpCost(-5);
+            }
             const buildsForType = { ...allBuilds[type] };
             delete buildsForType[name];
             
@@ -554,12 +550,12 @@ export const ReferencePage: React.FC<{ onClose: () => void }> = ({ onClose }) =>
                         <div className="flex flex-col items-center justify-center h-full p-8 text-center">
                             <h3 className="font-cinzel text-4xl text-cyan-200 tracking-widest">Welcome</h3>
                             <p className="text-gray-400 mt-4 max-w-2xl">Create and manage your custom companions, weapons, beasts, and vehicles.</p>
-                            <button onClick={() => setCurrentView('load')} className="mt-8 px-10 py-4 font-cinzel text-2xl bg-cyan-900/60 border border-cyan-700 rounded-md hover:bg-cyan-800/80 transition-colors">
+                            <button onClick={() => setCurrentView('load')} className="mt-8 px-10 py-4 font-cinzel text-2xl bg-cyan-700/30 border border-cyan-500 rounded-md hover:bg-cyan-600/40 backdrop-blur-sm transition-colors">
                                 LOAD SAVED BUILDS
                             </button>
                             <p className="font-cinzel text-gray-500 tracking-widest text-sm mt-16">OR START A NEW BUILD</p>
                             <div className="flex gap-4 mt-4">
-                                {BUILD_TYPES.map(type => ( <button key={type} onClick={() => handleStartNew(type)} className="px-6 py-2 font-cinzel bg-gray-800/50 border border-gray-700 rounded-md hover:bg-gray-700 transition-colors">{type.charAt(0).toUpperCase() + type.slice(1)}</button> ))}
+                                {BUILD_TYPES.map(type => ( <button key={type} onClick={() => handleStartNew(type)} className="px-6 py-2 font-cinzel bg-slate-700/40 border border-slate-500 rounded-md hover:bg-slate-600/50 backdrop-blur-sm transition-colors">{type.charAt(0).toUpperCase() + type.slice(1)}</button> ))}
                             </div>
                         </div>
                     )}
@@ -567,7 +563,7 @@ export const ReferencePage: React.FC<{ onClose: () => void }> = ({ onClose }) =>
                         <div className="p-8">
                             <div className="flex justify-between items-center mb-6">
                                 <h3 className="font-cinzel text-3xl text-cyan-200 tracking-widest">Load a Build</h3>
-                                <button onClick={() => setCurrentView('home')} className="px-4 py-2 font-cinzel bg-gray-800/50 border border-gray-700 rounded-md hover:bg-gray-700 transition-colors">← Back to Home</button>
+                                <button onClick={() => setCurrentView('home')} className="px-4 py-2 font-cinzel bg-slate-700/40 border border-slate-500 rounded-md hover:bg-slate-600/50 backdrop-blur-sm transition-colors">← Back to Home</button>
                             </div>
                             <div className="space-y-8">
                                 {BUILD_TYPES.map(type => (
@@ -578,8 +574,8 @@ export const ReferencePage: React.FC<{ onClose: () => void }> = ({ onClose }) =>
                                                 <div key={name} className="bg-black/30 p-4 rounded-lg border border-gray-700 flex justify-between items-center">
                                                     <span className="text-gray-300 font-semibold">{name}</span>
                                                     <div className="flex gap-2">
-                                                        <button onClick={() => handleLoadBuild(type, name)} className="px-3 py-1 text-sm font-cinzel bg-cyan-900/60 border border-cyan-700 rounded-md hover:bg-cyan-800/80 transition-colors">Load</button>
-                                                        <button onClick={() => handleDeleteBuild(type, name)} className="px-3 py-1 text-sm font-cinzel bg-red-900/50 border border-red-700 rounded-md hover:bg-red-800/80 transition-colors">Delete</button>
+                                                        <button onClick={() => handleLoadBuild(type, name)} className="px-3 py-1 text-sm font-cinzel bg-cyan-800/40 border border-cyan-600 rounded-md hover:bg-cyan-700/60 backdrop-blur-sm transition-colors">Load</button>
+                                                        <button onClick={() => handleDeleteBuild(type, name)} className="px-3 py-1 text-sm font-cinzel bg-red-800/30 border border-red-600 rounded-md hover:bg-red-700/50 backdrop-blur-sm transition-colors">Delete</button>
                                                     </div>
                                                 </div>
                                             )) : <p className="text-gray-500 italic col-span-full">No saved builds for this category.</p>}
@@ -599,11 +595,17 @@ export const ReferencePage: React.FC<{ onClose: () => void }> = ({ onClose }) =>
                     <footer className="flex justify-center items-center gap-4 p-3 border-t border-white/10 bg-black/20 flex-shrink-0">
                         {currentBuild ? (
                             <>
-                                <button onClick={handleSaveCurrentBuild} className="px-8 py-3 font-cinzel text-lg bg-green-900/60 border border-green-700 rounded-md hover:bg-green-800/80 transition-colors">Save Changes</button>
-                                <button onClick={handleSaveAsNewBuild} className="px-8 py-3 font-cinzel text-lg bg-blue-900/60 border border-blue-700 rounded-md hover:bg-blue-800/80 transition-colors">Save As New...</button>
+                                <button onClick={handleSaveCurrentBuild} className="px-8 py-3 font-cinzel text-lg bg-green-800/40 border border-green-600 rounded-md hover:bg-green-700/50 backdrop-blur-sm transition-colors">Save Changes</button>
+                                <button onClick={handleSaveAsNewBuild} className="px-8 py-3 font-cinzel text-lg bg-blue-800/40 border border-blue-600 rounded-md hover:bg-blue-700/50 backdrop-blur-sm transition-colors">
+                                    Save As New...
+                                    {currentView === 'weapons' && <span className="text-red-400 text-sm ml-2">(-5 FP)</span>}
+                                </button>
                             </>
                         ) : (
-                            <button onClick={handleSaveAsNewBuild} className="px-8 py-3 font-cinzel text-lg bg-green-900/60 border border-green-700 rounded-md hover:bg-green-800/80 transition-colors">Save New Build...</button>
+                            <button onClick={handleSaveAsNewBuild} className="px-8 py-3 font-cinzel text-lg bg-green-800/40 border border-green-600 rounded-md hover:bg-green-700/50 backdrop-blur-sm transition-colors">
+                                Save New Build...
+                                {currentView === 'weapons' && <span className="text-red-400 text-sm ml-2">(-5 FP)</span>}
+                            </button>
                         )}
                     </footer>
                 )}

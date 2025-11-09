@@ -224,6 +224,52 @@ export const usePageThreeState = () => {
         righteousCreationEngraving, handleRighteousCreationEngravingSelect,
         righteousCreationWeaponName, handleRighteousCreationWeaponAssign,
 
+        // Magician States
+        isGoodTidingsMagicianApplied: goodTidingsState.isMagicianApplied,
+        handleToggleGoodTidingsMagician: goodTidingsState.handleToggleMagician,
+        disableGoodTidingsMagician: goodTidingsState.disableMagician,
+        goodTidingsSigilTreeCost: goodTidingsState.sigilTreeCost,
+
+        isCompellingWillMagicianApplied: compellingWillState.isMagicianApplied,
+        handleToggleCompellingWillMagician: compellingWillState.handleToggleMagician,
+        disableCompellingWillMagician: compellingWillState.disableMagician,
+        compellingWillSigilTreeCost: compellingWillState.sigilTreeCost,
+
+        isWorldlyWisdomMagicianApplied: worldlyWisdomState.isMagicianApplied,
+        handleToggleWorldlyWisdomMagician: worldlyWisdomState.handleToggleMagician,
+        disableWorldlyWisdomMagician: worldlyWisdomState.disableMagician,
+        worldlyWisdomSigilTreeCost: worldlyWisdomState.sigilTreeCost,
+
+        isBitterDissatisfactionMagicianApplied: bitterDissatisfactionState.isMagicianApplied,
+        handleToggleBitterDissatisfactionMagician: bitterDissatisfactionState.handleToggleMagician,
+        disableBitterDissatisfactionMagician: bitterDissatisfactionState.disableMagician,
+        bitterDissatisfactionSigilTreeCost: bitterDissatisfactionState.sigilTreeCost,
+
+        isLostHopeMagicianApplied: lostHopeState.isMagicianApplied,
+        handleToggleLostHopeMagician: lostHopeState.handleToggleMagician,
+        disableLostHopeMagician: lostHopeState.disableMagician,
+        lostHopeSigilTreeCost: lostHopeState.sigilTreeCost,
+
+        isFallenPeaceMagicianApplied: fallenPeaceState.isMagicianApplied,
+        handleToggleFallenPeaceMagician: fallenPeaceState.handleToggleMagician,
+        disableFallenPeaceMagician: fallenPeaceState.disableMagician,
+        fallenPeaceSigilTreeCost: fallenPeaceState.sigilTreeCost,
+
+        isGraciousDefeatMagicianApplied: graciousDefeatState.isMagicianApplied,
+        handleToggleGraciousDefeatMagician: graciousDefeatState.handleToggleMagician,
+        disableGraciousDefeatMagician: graciousDefeatState.disableMagician,
+        graciousDefeatSigilTreeCost: graciousDefeatState.sigilTreeCost,
+
+        isClosedCircuitsMagicianApplied: closedCircuitsState.isMagicianApplied,
+        handleToggleClosedCircuitsMagician: closedCircuitsState.handleToggleMagician,
+        disableClosedCircuitsMagician: closedCircuitsState.disableMagician,
+        closedCircuitsSigilTreeCost: closedCircuitsState.sigilTreeCost,
+
+        isRighteousCreationMagicianApplied: righteousCreationState.isMagicianApplied,
+        handleToggleRighteousCreationMagician: righteousCreationState.handleToggleMagician,
+        disableRighteousCreationMagician: righteousCreationState.disableMagician,
+        righteousCreationSigilTreeCost: righteousCreationState.sigilTreeCost,
+
         // Spread all blessing states
         ...goodTidingsState,
         ...compellingWillState,

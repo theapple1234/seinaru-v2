@@ -1,10 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useCharacterContext } from '../../context/CharacterContext';
 import { ARABELLA_DATA, COMPELLING_WILL_DATA, COMPELLING_WILL_SIGIL_TREE_DATA, TELEKINETICS_DATA, METATHERMICS_DATA, BLESSING_ENGRAVINGS } from '../../constants';
-import type { CompellingWillPower, CompellingWillSigil } from '../../types';
+import type { CompellingWillPower, CompellingWillSigil, ChoiceItem } from '../../types';
 import { BlessingIntro, SectionHeader, SectionSubHeader, WeaponIcon } from '../ui';
 import { CompellingWillSigilCard, SigilColor } from '../CompellingWillSigilCard';
-import { ChoiceCard } from '../TraitCard';
 import { WeaponSelectionModal } from '../WeaponSelectionModal';
 
 
@@ -14,9 +13,57 @@ const getSigilTypeFromImage = (imageSrc: string): keyof typeof sigilImageMap | n
     return null;
 }
 
+const PowerCard: React.FC<{
+    power: ChoiceItem;
+    isSelected: boolean;
+    isDisabled: boolean;
+    onToggle: (id: string) => void;
+    children?: React.ReactNode;
+    iconButton?: React.ReactNode;
+    onIconButtonClick?: () => void;
+}> = ({ power, isSelected, isDisabled, onToggle, children, iconButton, onIconButtonClick }) => {
+    const wrapperClass = `bg-black/40 backdrop-blur-sm p-4 rounded-xl border flex flex-col text-center transition-all ${
+        isSelected
+        ? 'border-purple-400 ring-2 ring-purple-400/50'
+        : isDisabled
+            ? 'opacity-50 cursor-not-allowed border-gray-800'
+            : 'border-white/10 hover:border-purple-400/70 cursor-pointer'
+    }`;
+
+    const handleIconClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        onIconButtonClick?.();
+    };
+    
+    return (
+        <div className={`${wrapperClass} relative`} onClick={() => !isDisabled && onToggle(power.id)}>
+            {iconButton && onIconButtonClick && isSelected && (
+                <button
+                    onClick={handleIconClick}
+                    className="absolute top-2 right-2 p-2 rounded-full bg-purple-900/50 text-purple-200/70 hover:bg-purple-800/60 hover:text-purple-100 transition-colors z-10"
+                    aria-label="Card action"
+                >
+                    {iconButton}
+                </button>
+            )}
+            <img src={power.imageSrc} alt={power.title} className="w-full h-40 rounded-md mb-4 object-cover" />
+            <h4 className="font-cinzel font-bold text-white tracking-wider text-xl">{power.title}</h4>
+            {power.cost && <p className="text-xs text-yellow-300/70 italic mt-1">{power.cost}</p>}
+            <div className="w-16 h-px bg-white/10 mx-auto my-2"></div>
+            <p className="text-xs text-gray-400 leading-relaxed flex-grow text-left whitespace-pre-wrap">{power.description}</p>
+            {children && (
+                 <div className="mt-4 pt-4 border-t border-gray-700/50">
+                    {children}
+                 </div>
+            )}
+        </div>
+    );
+};
+
 export const CompellingWillSection: React.FC = () => {
     const ctx = useCharacterContext();
     const [isWeaponModalOpen, setIsWeaponModalOpen] = useState(false);
+    const [isThermalWeaponryModalOpen, setIsThermalWeaponryModalOpen] = useState(false);
 
     const {
         selectedBlessingEngraving,
@@ -24,7 +71,23 @@ export const CompellingWillSection: React.FC = () => {
         handleCompellingWillEngravingSelect,
         compellingWillWeaponName,
         handleCompellingWillWeaponAssign,
+        thermalWeaponryWeaponName,
+        handleThermalWeaponryWeaponAssign,
+        selectedTrueSelfTraits,
+        isCompellingWillMagicianApplied,
+        handleToggleCompellingWillMagician,
+        disableCompellingWillMagician,
+        compellingWillSigilTreeCost
     } = useCharacterContext();
+
+    const finalEngraving = compellingWillEngraving ?? selectedBlessingEngraving;
+    const isSkinEngraved = finalEngraving === 'skin';
+
+    useEffect(() => {
+        if (!isSkinEngraved && isCompellingWillMagicianApplied) {
+            disableCompellingWillMagician();
+        }
+    }, [isSkinEngraved, isCompellingWillMagicianApplied, disableCompellingWillMagician]);
 
     const isCompellingWillPowerDisabled = (power: CompellingWillPower, type: 'telekinetics' | 'metathermics'): boolean => {
         const selectedSet = type === 'telekinetics' ? ctx.selectedTelekinetics : ctx.selectedMetathermics;
@@ -52,7 +115,6 @@ export const CompellingWillSection: React.FC = () => {
     const getCompellingWillSigil = (id: string) => COMPELLING_WILL_SIGIL_TREE_DATA.find(s => s.id === id)!;
     
     const getSigilDisplayInfo = (sigil: CompellingWillSigil): { color: SigilColor, benefits: React.ReactNode } => {
-        // FIX: Explicitly type colorMap to ensure color is inferred as SigilColor, not string.
         const colorMap: Record<string, SigilColor> = {
             'MANIPULATOR': 'red', 'REALITY BENDER': 'red', 'PSYCHO': 'green',
             'THERMAL MASTER': 'green', 'TELEKINETIC I': 'gray', 'TELEKINETIC II': 'gray',
@@ -92,6 +154,9 @@ export const CompellingWillSection: React.FC = () => {
     const isTelekineticsBoostDisabled = !ctx.isTelekineticsBoosted && ctx.availableSigilCounts.kaarn <= 0;
     const isMetathermicsBoostDisabled = !ctx.isMetathermicsBoosted && ctx.availableSigilCounts.purth <= 0;
 
+    const isMagicianSelected = selectedTrueSelfTraits.has('magician');
+    const additionalCost = Math.floor(compellingWillSigilTreeCost * 0.25);
+
     return (
         <section>
             <BlessingIntro {...ARABELLA_DATA} />
@@ -103,7 +168,6 @@ export const CompellingWillSection: React.FC = () => {
                 </h4>
                 <div className="grid grid-cols-3 gap-4">
                     {BLESSING_ENGRAVINGS.map(engraving => {
-                        const finalEngraving = compellingWillEngraving ?? selectedBlessingEngraving;
                         const isSelected = finalEngraving === engraving.id;
                         const isOverridden = compellingWillEngraving !== null;
                         const isWeapon = engraving.id === 'weapon';
@@ -137,6 +201,22 @@ export const CompellingWillSection: React.FC = () => {
                         );
                     })}
                 </div>
+                {isMagicianSelected && isSkinEngraved && (
+                    <div className="text-center mt-4">
+                        <button
+                            onClick={handleToggleCompellingWillMagician}
+                            className={`px-6 py-3 text-sm rounded-lg border transition-colors ${
+                                isCompellingWillMagicianApplied
+                                    ? 'bg-purple-800/60 border-purple-500 text-white'
+                                    : 'bg-gray-800/50 border-gray-700 text-gray-300 hover:border-purple-500/70'
+                            }`}
+                        >
+                            {isCompellingWillMagicianApplied
+                                ? `The 'Magician' trait is applied. Click to remove. (+${additionalCost} BP)`
+                                : `Click to apply the 'Magician' trait from your True Self. This allows you to use the Blessing without transforming for an additional ${additionalCost} BP.`}
+                        </button>
+                    </div>
+                )}
             </div>
 
             {isWeaponModalOpen && (
@@ -147,6 +227,20 @@ export const CompellingWillSection: React.FC = () => {
                         setIsWeaponModalOpen(false);
                     }}
                     currentWeaponName={compellingWillWeaponName}
+                />
+            )}
+
+            {isThermalWeaponryModalOpen && (
+                <WeaponSelectionModal
+                    onClose={() => setIsThermalWeaponryModalOpen(false)}
+                    onSelect={(weaponName) => {
+                        handleThermalWeaponryWeaponAssign(weaponName);
+                        setIsThermalWeaponryModalOpen(false);
+                    }}
+                    currentWeaponName={thermalWeaponryWeaponName}
+                    pointLimit={ctx.isMetathermicsBoosted ? 35 : 30}
+                    title="Assign Thermal Weapon"
+                    categoryFilter={['bladed_melee', 'blunt_melee']}
                 />
             )}
 
@@ -200,13 +294,12 @@ export const CompellingWillSection: React.FC = () => {
                         
                         const renderPower = (power: CompellingWillPower) => {
                             const boostedText = ctx.isTelekineticsBoosted && kaarnBoostDescriptions[power.id] ? `\n\nBOOSTED: ${kaarnBoostDescriptions[power.id]}` : '';
-                            return <ChoiceCard 
+                            return <PowerCard 
                                 key={power.id} 
-                                item={{...power, cost: '', description: power.description + boostedText}} 
+                                power={{...power, cost: '', description: power.description + boostedText}} 
                                 isSelected={ctx.selectedTelekinetics.has(power.id)} 
-                                onSelect={ctx.handleTelekineticsSelect} 
-                                disabled={isCompellingWillPowerDisabled(power, 'telekinetics')} 
-                                selectionColor="amber" 
+                                onToggle={ctx.handleTelekineticsSelect} 
+                                isDisabled={isCompellingWillPowerDisabled(power, 'telekinetics')} 
                             />
                         };
 
@@ -249,7 +342,24 @@ export const CompellingWillSection: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                     {METATHERMICS_DATA.map(power => {
                         const boostedText = ctx.isMetathermicsBoosted && purthBoostDescriptions[power.id] ? `\n\nBOOSTED: ${purthBoostDescriptions[power.id]}` : '';
-                        return <ChoiceCard key={power.id} item={{...power, cost: '', description: power.description + boostedText}} isSelected={ctx.selectedMetathermics.has(power.id)} onSelect={ctx.handleMetathermicsSelect} disabled={isCompellingWillPowerDisabled(power, 'metathermics')} selectionColor="amber" />
+                        const isThermalWeaponry = power.id === 'thermal_weaponry';
+                        const isSelected = ctx.selectedMetathermics.has(power.id);
+                        return <PowerCard 
+                                    key={power.id} 
+                                    power={{...power, cost: '', description: power.description + boostedText}} 
+                                    isSelected={isSelected} 
+                                    onToggle={ctx.handleMetathermicsSelect} 
+                                    isDisabled={isCompellingWillPowerDisabled(power, 'metathermics')} 
+                                    iconButton={isThermalWeaponry ? <WeaponIcon /> : undefined}
+                                    onIconButtonClick={isThermalWeaponry ? () => setIsThermalWeaponryModalOpen(true) : undefined}
+                                >
+                                {isThermalWeaponry && isSelected && thermalWeaponryWeaponName && (
+                                    <div className="text-center mt-2">
+                                        <p className="text-xs text-gray-400">Assigned:</p>
+                                        <p className="text-sm font-bold text-cyan-300">{thermalWeaponryWeaponName}</p>
+                                    </div>
+                                )}
+                                </PowerCard>
                     })}
                 </div>
             </div>

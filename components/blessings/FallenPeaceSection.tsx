@@ -1,10 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useCharacterContext } from '../../context/CharacterContext';
 import { FALLEN_PEACE_DATA, FALLEN_PEACE_SIGIL_TREE_DATA, TELEPATHY_DATA, MENTAL_MANIPULATION_DATA, BLESSING_ENGRAVINGS } from '../../constants';
-import type { FallenPeacePower, FallenPeaceSigil } from '../../types';
+import type { FallenPeacePower, FallenPeaceSigil, ChoiceItem } from '../../types';
 import { BlessingIntro, SectionHeader, SectionSubHeader, WeaponIcon } from '../ui';
 import { CompellingWillSigilCard, SigilColor } from '../CompellingWillSigilCard';
-import { ChoiceCard } from '../TraitCard';
 import { WeaponSelectionModal } from '../WeaponSelectionModal';
 
 
@@ -13,6 +12,37 @@ const getSigilTypeFromImage = (imageSrc: string): keyof typeof sigilImageMap | n
     for (const key in sigilImageMap) { if (imageSrc.endsWith(key)) { return sigilImageMap[key]; } }
     return null;
 }
+
+const PowerCard: React.FC<{
+    power: ChoiceItem;
+    isSelected: boolean;
+    isDisabled: boolean;
+    onToggle: (id: string) => void;
+    children?: React.ReactNode;
+}> = ({ power, isSelected, isDisabled, onToggle, children }) => {
+    const wrapperClass = `bg-black/40 backdrop-blur-sm p-4 rounded-xl border flex flex-col text-center transition-all h-full ${
+        isSelected
+        ? 'border-purple-400 ring-2 ring-purple-400/50'
+        : isDisabled
+            ? 'opacity-50 cursor-not-allowed border-gray-800'
+            : 'border-white/10 hover:border-purple-400/70 cursor-pointer'
+    }`;
+    
+    return (
+        <div className={`${wrapperClass} relative`} onClick={() => !isDisabled && onToggle(power.id)}>
+            <img src={power.imageSrc} alt={power.title} className="w-full h-40 rounded-md mb-4 object-cover" />
+            <h4 className="font-cinzel font-bold text-white tracking-wider text-xl">{power.title}</h4>
+            {power.cost && <p className="text-xs text-yellow-300/70 italic mt-1">{power.cost}</p>}
+            <div className="w-16 h-px bg-white/10 mx-auto my-2"></div>
+            <p className="text-xs text-gray-400 leading-relaxed flex-grow text-left whitespace-pre-wrap">{power.description}</p>
+            {children && (
+                 <div className="mt-4 pt-4 border-t border-gray-700/50">
+                    {children}
+                 </div>
+            )}
+        </div>
+    );
+};
 
 export const FallenPeaceSection: React.FC = () => {
     const ctx = useCharacterContext();
@@ -23,7 +53,21 @@ export const FallenPeaceSection: React.FC = () => {
         handleFallenPeaceEngravingSelect,
         fallenPeaceWeaponName,
         handleFallenPeaceWeaponAssign,
+        selectedTrueSelfTraits,
+        isFallenPeaceMagicianApplied,
+        handleToggleFallenPeaceMagician,
+        disableFallenPeaceMagician,
+        fallenPeaceSigilTreeCost,
     } = useCharacterContext();
+
+    const finalEngraving = fallenPeaceEngraving ?? selectedBlessingEngraving;
+    const isSkinEngraved = finalEngraving === 'skin';
+
+    useEffect(() => {
+        if (!isSkinEngraved && isFallenPeaceMagicianApplied) {
+            disableFallenPeaceMagician();
+        }
+    }, [isSkinEngraved, isFallenPeaceMagicianApplied, disableFallenPeaceMagician]);
 
     const isFallenPeacePowerDisabled = (power: FallenPeacePower, type: 'telepathy' | 'mental_manipulation'): boolean => {
         const selectedSet = type === 'telepathy' ? ctx.selectedTelepathy : ctx.selectedMentalManipulation;
@@ -51,7 +95,6 @@ export const FallenPeaceSection: React.FC = () => {
     const getFallenPeaceSigil = (id: string) => FALLEN_PEACE_SIGIL_TREE_DATA.find(s => s.id === id)!;
     
     const getSigilDisplayInfo = (sigil: FallenPeaceSigil): { color: SigilColor, benefits: React.ReactNode } => {
-        // FIX: Explicitly type colorMap to ensure color is inferred as SigilColor, not string.
         const colorMap: Record<string, SigilColor> = {
             'Left Brained': 'orange', 'Lobe': 'gray', 'Frontal Lobe': 'lime', 'Right Brained': 'red',
         };
@@ -82,6 +125,9 @@ export const FallenPeaceSection: React.FC = () => {
     const isTelepathyBoostDisabled = !ctx.isTelepathyBoosted && ctx.availableSigilCounts.kaarn <= 0;
     const isMentalManipulationBoostDisabled = !ctx.isMentalManipulationBoosted && ctx.availableSigilCounts.purth <= 0;
 
+    const isMagicianSelected = selectedTrueSelfTraits.has('magician');
+    const additionalCost = Math.floor(fallenPeaceSigilTreeCost * 0.25);
+
     return (
         <section>
             <BlessingIntro {...FALLEN_PEACE_DATA} />
@@ -91,7 +137,6 @@ export const FallenPeaceSection: React.FC = () => {
                 </h4>
                 <div className="grid grid-cols-3 gap-4">
                     {BLESSING_ENGRAVINGS.map(engraving => {
-                        const finalEngraving = fallenPeaceEngraving ?? selectedBlessingEngraving;
                         const isSelected = finalEngraving === engraving.id;
                         const isOverridden = fallenPeaceEngraving !== null;
                         const isWeapon = engraving.id === 'weapon';
@@ -125,6 +170,22 @@ export const FallenPeaceSection: React.FC = () => {
                         );
                     })}
                 </div>
+                {isMagicianSelected && isSkinEngraved && (
+                    <div className="text-center mt-4">
+                        <button
+                            onClick={handleToggleFallenPeaceMagician}
+                            className={`px-6 py-3 text-sm rounded-lg border transition-colors ${
+                                isFallenPeaceMagicianApplied
+                                    ? 'bg-purple-800/60 border-purple-500 text-white'
+                                    : 'bg-gray-800/50 border-gray-700 text-gray-300 hover:border-purple-500/70'
+                            }`}
+                        >
+                            {isFallenPeaceMagicianApplied
+                                ? `The 'Magician' trait is applied. Click to remove. (+${additionalCost} BP)`
+                                : `Click to apply the 'Magician' trait from your True Self. This allows you to use the Blessing without transforming for an additional ${additionalCost} BP.`}
+                        </button>
+                    </div>
+                )}
             </div>
 
             {isWeaponModalOpen && (
@@ -157,7 +218,7 @@ export const FallenPeaceSection: React.FC = () => {
                     <CompellingWillSigilCard sigil={getFallenPeaceSigil('right_brained')} isSelected={ctx.selectedFallenPeaceSigils.has('right_brained')} isDisabled={isFallenPeaceSigilDisabled(getFallenPeaceSigil('right_brained'))} onSelect={ctx.handleFallenPeaceSigilSelect} benefitsContent={getSigilDisplayInfo(getFallenPeaceSigil('right_brained')).benefits} color={getSigilDisplayInfo(getFallenPeaceSigil('right_brained')).color} />
                 </div>
             </div>
-            <div className="mt-16 px-4 lg:px-8">
+            <div className="mt-16">
                 <SectionHeader>Telepathy</SectionHeader>
                 <div className={`my-4 max-w-sm mx-auto p-4 border rounded-lg transition-all bg-black/20 ${ ctx.isTelepathyBoosted ? 'border-amber-400 ring-2 ring-amber-400/50 cursor-pointer hover:border-amber-300' : isTelepathyBoostDisabled ? 'border-gray-700 opacity-50 cursor-not-allowed' : 'border-gray-700 hover:border-amber-400/50 cursor-pointer'}`} onClick={!isTelepathyBoostDisabled ? () => ctx.handleFallenPeaceBoostToggle('telepathy') : undefined}>
                     <div className="flex items-center justify-center gap-4">
@@ -172,13 +233,13 @@ export const FallenPeaceSection: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                     {TELEPATHY_DATA.map(power => {
                         const boostedText = ctx.isTelepathyBoosted && boostDescriptions[power.id] ? `\n\nBOOSTED: ${boostDescriptions[power.id]}` : '';
-                        return <ChoiceCard key={power.id} item={{...power, cost: '', description: power.description + boostedText}} isSelected={ctx.selectedTelepathy.has(power.id)} onSelect={ctx.handleTelepathySelect} disabled={isFallenPeacePowerDisabled(power, 'telepathy')} selectionColor="amber" />
+                        return <PowerCard key={power.id} power={{...power, cost: '', description: power.description + boostedText}} isSelected={ctx.selectedTelepathy.has(power.id)} onToggle={ctx.handleTelepathySelect} isDisabled={isFallenPeacePowerDisabled(power, 'telepathy')} />
                     })}
                 </div>
             </div>
-            <div className="mt-16 px-4 lg:px-8">
+            <div className="mt-16">
                 <SectionHeader>Mental Manipulation</SectionHeader>
-                 <div className={`my-4 max-w-sm mx-auto p-4 border rounded-lg transition-all bg-black/20 ${ ctx.isMentalManipulationBoosted ? 'border-amber-400 ring-2 ring-amber-400/50 cursor-pointer hover:border-amber-300' : isMentalManipulationBoostDisabled ? 'border-gray-700 opacity-50 cursor-not-allowed' : 'border-gray-700 hover:border-amber-400/50 cursor-pointer'}`} onClick={!isMentalManipulationBoostDisabled ? () => ctx.handleFallenPeaceBoostToggle('mentalManipulation') : undefined}>
+                <div className={`my-4 max-w-sm mx-auto p-4 border rounded-lg transition-all bg-black/20 ${ ctx.isMentalManipulationBoosted ? 'border-amber-400 ring-2 ring-amber-400/50 cursor-pointer hover:border-amber-300' : isMentalManipulationBoostDisabled ? 'border-gray-700 opacity-50 cursor-not-allowed' : 'border-gray-700 hover:border-amber-400/50 cursor-pointer'}`} onClick={!isMentalManipulationBoostDisabled ? () => ctx.handleFallenPeaceBoostToggle('mentalManipulation') : undefined}>
                     <div className="flex items-center justify-center gap-4">
                         <img src="https://saviapple.neocities.org/Seinaru_Magecraft_Girls/img/sigils/purth.png" alt="Purth Sigil" className="w-16 h-16"/>
                         <div className="text-left">
@@ -192,19 +253,18 @@ export const FallenPeaceSection: React.FC = () => {
                     {(() => {
                         const specialPower = MENTAL_MANIPULATION_DATA.find(p => p.id === 'breaker_of_minds');
                         const otherPowers = MENTAL_MANIPULATION_DATA.filter(p => p.id !== 'breaker_of_minds');
+                        
                         const firstHalf = otherPowers.slice(0, 3);
                         const secondHalf = otherPowers.slice(3);
 
                         const renderPower = (power: FallenPeacePower) => {
                             const boostedText = ctx.isMentalManipulationBoosted && boostDescriptions[power.id] ? `\n\nBOOSTED: ${boostDescriptions[power.id]}` : '';
-                            return <ChoiceCard 
+                            return <PowerCard 
                                 key={power.id} 
-                                item={{...power, cost: '', description: power.description + boostedText}} 
+                                power={{...power, cost: '', description: power.description + boostedText}} 
                                 isSelected={ctx.selectedMentalManipulation.has(power.id)} 
-                                onSelect={ctx.handleMentalManipulationSelect} 
-                                disabled={isFallenPeacePowerDisabled(power, 'mental_manipulation')} 
-                                selectionColor="amber"
-                            />
+                                onToggle={ctx.handleMentalManipulationSelect} 
+                                isDisabled={isFallenPeacePowerDisabled(power, 'mental_manipulation')} />
                         };
 
                         return (

@@ -1,9 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useCharacterContext } from '../../context/CharacterContext';
 import { GOOD_TIDINGS_DATA, GOOD_TIDINGS_SIGIL_TREE_DATA, ESSENTIAL_BOONS_DATA, MINOR_BOONS_DATA, MAJOR_BOONS_DATA, BLESSING_ENGRAVINGS } from '../../constants';
 import type { GoodTidingsSigilTier, ChoiceItem } from '../../types';
 import { BlessingIntro, SectionHeader, SectionSubHeader, WeaponIcon } from '../ui';
-import { ChoiceCard } from '../TraitCard';
 import { WeaponSelectionModal } from '../WeaponSelectionModal';
 
 const TierCard: React.FC<{
@@ -46,6 +45,32 @@ const TierCard: React.FC<{
     );
 };
 
+const PowerCard: React.FC<{
+    power: ChoiceItem;
+    isSelected: boolean;
+    isDisabled: boolean;
+    onToggle: (id: string) => void;
+}> = ({ power, isSelected, isDisabled, onToggle }) => {
+    const wrapperClass = `bg-black/40 backdrop-blur-sm p-4 rounded-xl border flex flex-col text-center transition-all ${
+        isSelected
+        ? 'border-purple-400 ring-2 ring-purple-400/50'
+        : isDisabled
+            ? 'opacity-50 cursor-not-allowed border-gray-800'
+            : 'border-white/10 hover:border-purple-400/70 cursor-pointer'
+    }`;
+    
+    return (
+        <div className={`${wrapperClass} relative`} onClick={() => !isDisabled && onToggle(power.id)}>
+            <img src={power.imageSrc} alt={power.title} className="w-full h-40 rounded-md mb-4 object-cover" />
+            <h4 className="font-cinzel font-bold text-white tracking-wider text-xl">{power.title}</h4>
+            {power.cost && <p className="text-xs text-yellow-300/70 italic mt-1">{power.cost}</p>}
+            <div className="w-16 h-px bg-white/10 mx-auto my-2"></div>
+            <p className="text-xs text-gray-400 leading-relaxed flex-grow text-left whitespace-pre-wrap">{power.description}</p>
+        </div>
+    );
+};
+
+
 export const GoodTidingsSection: React.FC = () => {
     const {
         selectedBlessingEngraving,
@@ -55,7 +80,12 @@ export const GoodTidingsSection: React.FC = () => {
         selectedMajorBoons, handleMajorBoonSelect, availableMajorBoonPicks,
         availableSigilCounts, handleGoodTidingsBoostToggle, isMinorBoonsBoosted, isMajorBoonsBoosted,
         goodTidingsEngraving, handleGoodTidingsEngravingSelect,
-        goodTidingsWeaponName, handleGoodTidingsWeaponAssign
+        goodTidingsWeaponName, handleGoodTidingsWeaponAssign,
+        selectedTrueSelfTraits,
+        isGoodTidingsMagicianApplied,
+        handleToggleGoodTidingsMagician,
+        disableGoodTidingsMagician,
+        goodTidingsSigilTreeCost
     } = useCharacterContext();
 
     const [isWeaponModalOpen, setIsWeaponModalOpen] = useState(false);
@@ -121,6 +151,17 @@ export const GoodTidingsSection: React.FC = () => {
     const isMinorBoostDisabled = !isMinorBoonsBoosted && availableSigilCounts.purth <= 0;
     const isMajorBoostDisabled = !isMajorBoonsBoosted && availableSigilCounts.xuth <= 0;
 
+    const isMagicianSelected = selectedTrueSelfTraits.has('magician');
+    const finalEngraving = goodTidingsEngraving ?? selectedBlessingEngraving;
+    const isSkinEngraved = finalEngraving === 'skin';
+    const additionalCost = Math.floor(goodTidingsSigilTreeCost * 0.25);
+
+    useEffect(() => {
+        if (!isSkinEngraved && isGoodTidingsMagicianApplied) {
+            disableGoodTidingsMagician();
+        }
+    }, [isSkinEngraved, isGoodTidingsMagicianApplied, disableGoodTidingsMagician]);
+
     return (
         <section>
             <BlessingIntro {...GOOD_TIDINGS_DATA} />
@@ -131,7 +172,6 @@ export const GoodTidingsSection: React.FC = () => {
                 </h4>
                 <div className="grid grid-cols-3 gap-4">
                     {BLESSING_ENGRAVINGS.map(engraving => {
-                        const finalEngraving = goodTidingsEngraving ?? selectedBlessingEngraving;
                         const isSelected = finalEngraving === engraving.id;
                         const isOverridden = goodTidingsEngraving !== null;
                         const isWeapon = engraving.id === 'weapon';
@@ -165,6 +205,22 @@ export const GoodTidingsSection: React.FC = () => {
                         );
                     })}
                 </div>
+                {isMagicianSelected && isSkinEngraved && (
+                    <div className="text-center mt-4">
+                        <button
+                            onClick={handleToggleGoodTidingsMagician}
+                            className={`px-6 py-3 text-sm rounded-lg border transition-colors ${
+                                isGoodTidingsMagicianApplied
+                                    ? 'bg-purple-800/60 border-purple-500 text-white'
+                                    : 'bg-gray-800/50 border-gray-700 text-gray-300 hover:border-purple-500/70'
+                            }`}
+                        >
+                            {isGoodTidingsMagicianApplied
+                                ? `The 'Magician' trait is applied. Click to remove. (+${additionalCost} BP)`
+                                : `Click to apply the 'Magician' trait from your True Self. This allows you to use the Blessing without transforming for an additional ${additionalCost} BP.`}
+                        </button>
+                    </div>
+                )}
             </div>
 
             {isWeaponModalOpen && (
@@ -205,13 +261,12 @@ export const GoodTidingsSection: React.FC = () => {
                 <SectionSubHeader>Picks Available: {availableEssentialBoonPicks - selectedEssentialBoons.size} / {availableEssentialBoonPicks}</SectionSubHeader>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto">
                     {ESSENTIAL_BOONS_DATA.map(boon => (
-                        <ChoiceCard 
+                        <PowerCard 
                             key={boon.id} 
-                            item={{...boon, cost: ''}} 
+                            power={{...boon, cost: ''}} 
                             isSelected={selectedEssentialBoons.has(boon.id)} 
-                            onSelect={handleEssentialBoonSelect}
-                            disabled={isEssentialBoonDisabled(boon)}
-                            selectionColor="amber"
+                            onToggle={handleEssentialBoonSelect}
+                            isDisabled={isEssentialBoonDisabled(boon)}
                         />
                     ))}
                 </div>
@@ -255,13 +310,12 @@ export const GoodTidingsSection: React.FC = () => {
                         const finalDescription = boon.description + boostedText;
 
                         return (
-                            <ChoiceCard 
+                            <PowerCard 
                                 key={boon.id} 
-                                item={{...boon, cost: '', description: finalDescription}} 
+                                power={{...boon, cost: '', description: finalDescription}} 
                                 isSelected={selectedMinorBoons.has(boon.id)} 
-                                onSelect={handleMinorBoonSelect}
-                                disabled={isMinorBoonDisabled(boon)}
-                                selectionColor="amber"
+                                onToggle={handleMinorBoonSelect}
+                                isDisabled={isMinorBoonDisabled(boon)}
                             />
                         )
                     })}
@@ -306,13 +360,12 @@ export const GoodTidingsSection: React.FC = () => {
                         const finalDescription = boon.description + boostedText;
 
                         return (
-                            <ChoiceCard 
+                            <PowerCard 
                                 key={boon.id} 
-                                item={{...boon, cost: boon.requires ? `Requires: ${MINOR_BOONS_DATA.find(b => b.id === boon.requires)?.title}` : '', description: finalDescription}} 
+                                power={{...boon, cost: boon.requires ? `Requires: ${MINOR_BOONS_DATA.find(b => b.id === boon.requires)?.title}` : '', description: finalDescription}} 
                                 isSelected={selectedMajorBoons.has(boon.id)} 
-                                onSelect={handleMajorBoonSelect}
-                                disabled={isMajorBoonDisabled(boon)}
-                                selectionColor="amber"
+                                onToggle={handleMajorBoonSelect}
+                                isDisabled={isMajorBoonDisabled(boon)}
                             />
                         );
                     })}

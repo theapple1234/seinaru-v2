@@ -1,10 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useCharacterContext } from '../../context/CharacterContext';
 import { WORLDLY_WISDOM_DATA, WORLDLY_WISDOM_SIGIL_TREE_DATA, ELEANORS_TECHNIQUES_DATA, GENEVIEVES_TECHNIQUES_DATA, BLESSING_ENGRAVINGS } from '../../constants';
-import type { WorldlyWisdomPower, WorldlyWisdomSigil } from '../../types';
+import type { WorldlyWisdomPower, WorldlyWisdomSigil, ChoiceItem } from '../../types';
 import { BlessingIntro, SectionHeader, SectionSubHeader, WeaponIcon } from '../ui';
 import { CompellingWillSigilCard, SigilColor } from '../CompellingWillSigilCard';
-import { ChoiceCard } from '../TraitCard';
 import { WeaponSelectionModal } from '../WeaponSelectionModal';
 
 const sigilImageMap: {[key: string]: string} = { 'kaarn.png': 'kaarn', 'purth.png': 'purth', 'juathas.png': 'juathas', 'xuth.png': 'xuth', 'sinthru.png': 'sinthru', 'lekolu.png': 'lekolu' };
@@ -12,6 +11,31 @@ const getSigilTypeFromImage = (imageSrc: string): keyof typeof sigilImageMap | n
     for (const key in sigilImageMap) { if (imageSrc.endsWith(key)) { return sigilImageMap[key]; } }
     return null;
 }
+
+const PowerCard: React.FC<{
+    power: ChoiceItem;
+    isSelected: boolean;
+    isDisabled: boolean;
+    onToggle: (id: string) => void;
+}> = ({ power, isSelected, isDisabled, onToggle }) => {
+    const wrapperClass = `bg-black/40 backdrop-blur-sm p-4 rounded-xl border flex flex-col text-center transition-all ${
+        isSelected
+        ? 'border-purple-400 ring-2 ring-purple-400/50'
+        : isDisabled
+            ? 'opacity-50 cursor-not-allowed border-gray-800'
+            : 'border-white/10 hover:border-purple-400/70 cursor-pointer'
+    }`;
+    
+    return (
+        <div className={`${wrapperClass} relative`} onClick={() => !isDisabled && onToggle(power.id)}>
+            <img src={power.imageSrc} alt={power.title} className="w-full h-40 rounded-md mb-4 object-cover" />
+            <h4 className="font-cinzel font-bold text-white tracking-wider text-xl">{power.title}</h4>
+            {power.cost && <p className="text-xs text-yellow-300/70 italic mt-1">{power.cost}</p>}
+            <div className="w-16 h-px bg-white/10 mx-auto my-2"></div>
+            <p className="text-xs text-gray-400 leading-relaxed flex-grow text-left whitespace-pre-wrap">{power.description}</p>
+        </div>
+    );
+};
 
 export const WorldlyWisdomSection: React.FC = () => {
     const ctx = useCharacterContext();
@@ -22,7 +46,21 @@ export const WorldlyWisdomSection: React.FC = () => {
         handleWorldlyWisdomEngravingSelect,
         worldlyWisdomWeaponName,
         handleWorldlyWisdomWeaponAssign,
+        selectedTrueSelfTraits,
+        isWorldlyWisdomMagicianApplied,
+        handleToggleWorldlyWisdomMagician,
+        disableWorldlyWisdomMagician,
+        worldlyWisdomSigilTreeCost,
     } = useCharacterContext();
+
+    const finalEngraving = worldlyWisdomEngraving ?? selectedBlessingEngraving;
+    const isSkinEngraved = finalEngraving === 'skin';
+
+    useEffect(() => {
+        if (!isSkinEngraved && isWorldlyWisdomMagicianApplied) {
+            disableWorldlyWisdomMagician();
+        }
+    }, [isSkinEngraved, isWorldlyWisdomMagicianApplied, disableWorldlyWisdomMagician]);
 
 
     const isWorldlyWisdomPowerDisabled = (power: WorldlyWisdomPower, type: 'eleanor' | 'genevieve'): boolean => {
@@ -88,6 +126,9 @@ export const WorldlyWisdomSection: React.FC = () => {
     const isEleanorsBoostDisabled = !ctx.isEleanorsTechniquesBoosted && ctx.availableSigilCounts.kaarn <= 0;
     const isGenevievesBoostDisabled = !ctx.isGenevievesTechniquesBoosted && ctx.availableSigilCounts.purth <= 0;
     
+    const isMagicianSelected = selectedTrueSelfTraits.has('magician');
+    const additionalCost = Math.floor(worldlyWisdomSigilTreeCost * 0.25);
+
     return (
         <section>
             <BlessingIntro {...WORLDLY_WISDOM_DATA} />
@@ -97,7 +138,6 @@ export const WorldlyWisdomSection: React.FC = () => {
                 </h4>
                 <div className="grid grid-cols-3 gap-4">
                     {BLESSING_ENGRAVINGS.map(engraving => {
-                        const finalEngraving = worldlyWisdomEngraving ?? selectedBlessingEngraving;
                         const isSelected = finalEngraving === engraving.id;
                         const isOverridden = worldlyWisdomEngraving !== null;
                         const isWeapon = engraving.id === 'weapon';
@@ -131,6 +171,22 @@ export const WorldlyWisdomSection: React.FC = () => {
                         );
                     })}
                 </div>
+                {isMagicianSelected && isSkinEngraved && (
+                    <div className="text-center mt-4">
+                        <button
+                            onClick={handleToggleWorldlyWisdomMagician}
+                            className={`px-6 py-3 text-sm rounded-lg border transition-colors ${
+                                isWorldlyWisdomMagicianApplied
+                                    ? 'bg-purple-800/60 border-purple-500 text-white'
+                                    : 'bg-gray-800/50 border-gray-700 text-gray-300 hover:border-purple-500/70'
+                            }`}
+                        >
+                            {isWorldlyWisdomMagicianApplied
+                                ? `The 'Magician' trait is applied. Click to remove. (+${additionalCost} BP)`
+                                : `Click to apply the 'Magician' trait from your True Self. This allows you to use the Blessing without transforming for an additional ${additionalCost} BP.`}
+                        </button>
+                    </div>
+                )}
             </div>
 
             {isWeaponModalOpen && (
@@ -183,7 +239,7 @@ export const WorldlyWisdomSection: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                     {ELEANORS_TECHNIQUES_DATA.map(power => {
                         const boostedText = ctx.isEleanorsTechniquesBoosted && boostDescriptions[power.id] ? `\n\nBOOSTED: ${boostDescriptions[power.id]}` : '';
-                        return <ChoiceCard key={power.id} item={{...power, cost: '', description: power.description + boostedText}} isSelected={ctx.selectedEleanorsTechniques.has(power.id)} onSelect={ctx.handleEleanorsTechniqueSelect} disabled={isWorldlyWisdomPowerDisabled(power, 'eleanor')} selectionColor="amber" />
+                        return <PowerCard key={power.id} power={{...power, cost: '', description: power.description + boostedText}} isSelected={ctx.selectedEleanorsTechniques.has(power.id)} onToggle={ctx.handleEleanorsTechniqueSelect} isDisabled={isWorldlyWisdomPowerDisabled(power, 'eleanor')} />
                     })}
                 </div>
             </div>
@@ -202,7 +258,7 @@ export const WorldlyWisdomSection: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                     {GENEVIEVES_TECHNIQUES_DATA.map(power => {
                          const boostedText = ctx.isGenevievesTechniquesBoosted && boostDescriptions[power.id] ? `\n\nBOOSTED: ${boostDescriptions[power.id]}` : '';
-                        return <ChoiceCard key={power.id} item={{...power, cost: '', description: power.description + boostedText}} isSelected={ctx.selectedGenevievesTechniques.has(power.id)} onSelect={ctx.handleGenevievesTechniqueSelect} disabled={isWorldlyWisdomPowerDisabled(power, 'genevieve')} selectionColor="amber" />
+                        return <PowerCard key={power.id} power={{...power, cost: '', description: power.description + boostedText}} isSelected={ctx.selectedGenevievesTechniques.has(power.id)} onToggle={ctx.handleGenevievesTechniqueSelect} isDisabled={isWorldlyWisdomPowerDisabled(power, 'genevieve')} />
                     })}
                 </div>
             </div>

@@ -1,4 +1,4 @@
-// FIX: Removed 'import type { Dominion } from ".";' as this type is defined below.
+// FIX: Define and export the 'Dominion' type and remove circular self-import.
 export interface Dominion {
   id: string;
   title: string;
@@ -48,6 +48,24 @@ export interface CustomColleagueOption {
     id: string;
     cost: string;
     description: string;
+}
+
+export interface CustomClassmateOption {
+    id: string;
+    cost: string;
+    description: string;
+}
+
+export interface CustomClassmateInstance {
+    id: number;
+    optionId: string;
+    companionName: string | null;
+}
+
+export interface CustomColleagueInstance {
+    id: number;
+    optionId: string;
+    companionName: string | null;
 }
 
 export interface SigilSubOption {

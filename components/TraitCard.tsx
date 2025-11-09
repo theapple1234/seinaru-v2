@@ -6,7 +6,7 @@ interface ChoiceCardProps {
   isSelected: boolean;
   onSelect: (id: string) => void;
   disabled?: boolean;
-  selectionColor?: 'cyan' | 'amber' | 'green' | 'brown';
+  selectionColor?: 'cyan' | 'amber' | 'green' | 'brown' | 'purple';
   layout?: 'vertical' | 'horizontal' | 'horizontal-tall';
   imageShape?: 'rect' | 'circle';
   aspect?: 'square';
@@ -19,7 +19,7 @@ interface ChoiceCardProps {
   imageRounding?: 'none' | 'sm' | 'md' | 'lg' | 'xl';
 }
 
-export const ChoiceCard: React.FC<ChoiceCardProps> = ({ item, isSelected, onSelect, disabled = false, selectionColor = 'cyan', layout = 'vertical', imageShape = 'rect', aspect, assignedColors = [], noBorder = false, children, alwaysShowChildren = false, onIconButtonClick, iconButton, imageRounding = 'md' }) => {
+export const ChoiceCard: React.FC<ChoiceCardProps> = ({ item, isSelected, onSelect, disabled = false, selectionColor = 'cyan', layout = 'vertical', imageShape = 'rect', aspect, assignedColors = [], noBorder = false, children, alwaysShowChildren = false, onIconButtonClick, iconButton, imageRounding = 'lg' }) => {
   const { id, title, cost, description, imageSrc } = item;
 
   const isGain = cost && (cost.toLowerCase().includes('grants') || cost.toLowerCase().includes('+'));
@@ -69,6 +69,17 @@ export const ChoiceCard: React.FC<ChoiceCardProps> = ({ item, isSelected, onSele
         iconText: 'text-yellow-200/70',
         iconHoverBg: 'hover:bg-yellow-800/60',
         iconHoverText: 'hover:text-yellow-100',
+    },
+    purple: {
+        border: 'border-purple-400',
+        ring: 'ring-purple-400',
+        hover: 'hover:border-purple-300/70',
+        ringHover: 'group-hover:ring-purple-300/70',
+        bg: 'bg-slate-900/80',
+        iconBg: 'bg-purple-900/50',
+        iconText: 'text-purple-200/70',
+        iconHoverBg: 'hover:bg-purple-800/60',
+        iconHoverText: 'hover:text-purple-100',
     }
   };
   const currentTheme = colorThemes[selectionColor] || colorThemes.cyan;
@@ -185,13 +196,13 @@ export const ChoiceCard: React.FC<ChoiceCardProps> = ({ item, isSelected, onSele
           <img src={imageSrc} alt={title} className="w-36 h-36 object-cover rounded-full" />
         </div>
       ) : (
-        <img src={imageSrc} alt={title} className={`w-full ${aspect === 'square' ? 'flex-grow min-h-0' : 'h-48'} object-contain ${imageRoundingClass} ${aspect === 'square' ? 'mb-2' : 'mb-4'}`} />
+        <img src={imageSrc} alt={title} className={`w-full ${aspect === 'square' ? 'flex-grow min-h-0' : 'h-48'} ${aspect === 'square' ? 'object-contain' : 'object-cover'} ${imageRoundingClass} ${aspect === 'square' ? 'mb-2' : 'mb-4'}`} />
       )}
       
       <div className={`flex flex-col justify-center ${aspect === 'square' ? '' : 'flex-grow'}`}>
         <h4 className={`font-bold font-cinzel text-white ${description ? 'text-sm sm:text-base' : 'text-xs sm:text-sm'}`}>{title}</h4>
         {cost && cost.trim() && <p className={`text-[10px] font-semibold my-1 ${costColor}`}>{cost.toUpperCase()}</p>}
-        {description && <p className="text-xs text-gray-400 leading-snug mt-2 flex-grow text-left whitespace-pre-wrap">{description}</p>}
+        {description && aspect !== 'square' && <p className="text-xs text-gray-400 leading-snug mt-2 flex-grow text-left whitespace-pre-wrap">{description}</p>}
         {showChildren && (
             <div className="mt-2 pt-2 border-t border-gray-700/50">
                 {children}

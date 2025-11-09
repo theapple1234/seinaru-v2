@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import type { SigilCounts } from '../../types';
 import { RIGHTEOUS_CREATION_SIGIL_TREE_DATA, RIGHTEOUS_CREATION_MAGITECH_DATA, RIGHTEOUS_CREATION_ARCANE_CONSTRUCTS_DATA, RIGHTEOUS_CREATION_METAMAGIC_DATA } from '../../constants';
@@ -9,12 +9,63 @@ const getSigilTypeFromImage = (imageSrc: string): keyof SigilCounts | null => {
     return null;
 }
 
+const SIGIL_BP_COSTS: Record<string, number> = { kaarn: 3, purth: 5, juathas: 8, xuth: 12, lekolu: 4, sinthru: 10 };
+
 export const useRighteousCreationState = ({ availableSigilCounts }: { availableSigilCounts: SigilCounts }) => {
     const [selectedRighteousCreationSigils, setSelectedRighteousCreationSigils] = useState<Set<string>>(new Set());
     const [selectedSpecialties, setSelectedSpecialties] = useState<Set<string>>(new Set());
     const [selectedMagitechPowers, setSelectedMagitechPowers] = useState<Set<string>>(new Set());
     const [selectedArcaneConstructsPowers, setSelectedArcaneConstructsPowers] = useState<Set<string>>(new Set());
     const [selectedMetamagicPowers, setSelectedMetamagicPowers] = useState<Set<string>>(new Set());
+    const [isMagicianApplied, setIsMagicianApplied] = useState(false);
+    const [weaponsmithWeaponName, setWeaponsmithWeaponName] = useState<string | null>(null);
+    const [roboticistIBeastName, setRoboticistIBeastName] = useState<string | null>(null);
+    const [roboticistCompanionName, setRoboticistCompanionName] = useState<string | null>(null);
+    const [masterMechanicVehicleName, setMasterMechanicVehicleName] = useState<string | null>(null);
+
+    const handleToggleMagician = () => setIsMagicianApplied(prev => !prev);
+    const disableMagician = () => setIsMagicianApplied(false);
+
+    const handleWeaponsmithWeaponAssign = (name: string | null) => {
+        setWeaponsmithWeaponName(name);
+    };
+
+    const handleRoboticistIBeastAssign = (name: string | null) => {
+        setRoboticistIBeastName(name);
+    };
+
+    const handleRoboticistCompanionAssign = (name: string | null) => {
+        setRoboticistCompanionName(name);
+    };
+
+    const handleMasterMechanicVehicleAssign = (name: string | null) => {
+        setMasterMechanicVehicleName(name);
+    };
+
+    useEffect(() => {
+        if (!selectedMagitechPowers.has('weaponsmith')) {
+            setWeaponsmithWeaponName(null);
+        }
+    }, [selectedMagitechPowers]);
+
+    useEffect(() => {
+        if (!selectedArcaneConstructsPowers.has('roboticist_i')) {
+            setRoboticistIBeastName(null);
+        }
+    }, [selectedArcaneConstructsPowers]);
+
+
+    useEffect(() => {
+        if (!selectedArcaneConstructsPowers.has('roboticist_ii')) {
+            setRoboticistCompanionName(null);
+        }
+    }, [selectedArcaneConstructsPowers]);
+    
+    useEffect(() => {
+        if (!selectedMagitechPowers.has('master_mechanic_i')) {
+            setMasterMechanicVehicleName(null);
+        }
+    }, [selectedMagitechPowers]);
 
     const { availableSpecialtyPicks, availableMagitechPicks, availableArcaneConstructsPicks, availableMetamagicPicks } = useMemo(() => {
         let specialty = 0, magitech = 0, arcaneConstructs = 0, metamagic = 0;
@@ -105,6 +156,18 @@ export const useRighteousCreationState = ({ availableSigilCounts }: { availableS
         return used;
     }, [selectedRighteousCreationSigils]);
     
+    const sigilTreeCost = useMemo(() => {
+        let cost = 0;
+        selectedRighteousCreationSigils.forEach(id => {
+            const sigil = RIGHTEOUS_CREATION_SIGIL_TREE_DATA.find(s => s.id === id);
+            const type = sigil ? getSigilTypeFromImage(sigil.imageSrc) : null;
+            if (type && SIGIL_BP_COSTS[type]) {
+                cost += SIGIL_BP_COSTS[type];
+            }
+        });
+        return cost;
+    }, [selectedRighteousCreationSigils]);
+
     return {
         selectedRighteousCreationSigils, handleRighteousCreationSigilSelect,
         selectedSpecialties, handleSpecialtySelect,
@@ -112,6 +175,15 @@ export const useRighteousCreationState = ({ availableSigilCounts }: { availableS
         selectedArcaneConstructsPowers, handleArcaneConstructsPowerSelect,
         selectedMetamagicPowers, handleMetamagicPowerSelect,
         availableSpecialtyPicks, availableMagitechPicks, availableArcaneConstructsPicks, availableMetamagicPicks,
+        isMagicianApplied,
+        handleToggleMagician,
+        disableMagician,
+        sigilTreeCost,
+        roboticistIBeastName, handleRoboticistIBeastAssign,
+        roboticistCompanionName, handleRoboticistCompanionAssign,
+        masterMechanicVehicleName, handleMasterMechanicVehicleAssign,
+        weaponsmithWeaponName,
+        handleWeaponsmithWeaponAssign,
         usedSigilCounts,
     };
 };

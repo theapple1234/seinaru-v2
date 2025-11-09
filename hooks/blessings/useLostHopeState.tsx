@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import type { SigilCounts } from '../../types';
 import { LOST_HOPE_SIGIL_TREE_DATA, CHANNELLING_DATA, NECROMANCY_DATA, BLACK_MAGIC_DATA } from '../../constants';
@@ -9,6 +9,8 @@ const getSigilTypeFromImage = (imageSrc: string): keyof SigilCounts | null => {
     return null;
 }
 
+const SIGIL_BP_COSTS: Record<string, number> = { kaarn: 3, purth: 5, juathas: 8, xuth: 12, lekolu: 4, sinthru: 10 };
+
 export const useLostHopeState = ({ availableSigilCounts }: { availableSigilCounts: SigilCounts }) => {
     const [selectedLostHopeSigils, setSelectedLostHopeSigils] = useState<Set<string>>(new Set());
     const [selectedChannelling, setSelectedChannelling] = useState<Set<string>>(new Set());
@@ -17,6 +19,41 @@ export const useLostHopeState = ({ availableSigilCounts }: { availableSigilCount
     const [isChannellingBoosted, setIsChannellingBoosted] = useState(false);
     const [isNecromancyBoosted, setIsNecromancyBoosted] = useState(false);
     const [blackMagicBoostSigil, setBlackMagicBoostSigil] = useState<'sinthru' | 'xuth' | null>(null);
+    const [isMagicianApplied, setIsMagicianApplied] = useState(false);
+    const [undeadThrallCompanionName, setUndeadThrallCompanionName] = useState<string | null>(null);
+    const [undeadBeastName, setUndeadBeastName] = useState<string | null>(null);
+
+    const prevBlackMagicBoostSigil = useRef(blackMagicBoostSigil);
+    useEffect(() => {
+        if (prevBlackMagicBoostSigil.current && !blackMagicBoostSigil) {
+            // Boost was removed, reset the companion in case it was over the limit
+            setUndeadThrallCompanionName(null);
+        }
+        prevBlackMagicBoostSigil.current = blackMagicBoostSigil;
+    }, [blackMagicBoostSigil]);
+
+    const handleUndeadThrallCompanionAssign = (name: string | null) => {
+        setUndeadThrallCompanionName(name);
+    };
+
+    const handleUndeadBeastAssign = (name: string | null) => {
+        setUndeadBeastName(name);
+    };
+
+    useEffect(() => {
+        if (!selectedBlackMagic.has('undead_thrall')) {
+            setUndeadThrallCompanionName(null);
+        }
+    }, [selectedBlackMagic]);
+
+    useEffect(() => {
+        if (!selectedNecromancy.has('undead_beast')) {
+            setUndeadBeastName(null);
+        }
+    }, [selectedNecromancy]);
+
+    const handleToggleMagician = () => setIsMagicianApplied(prev => !prev);
+    const disableMagician = () => setIsMagicianApplied(false);
 
     const { availableChannellingPicks, availableNecromancyPicks, availableBlackMagicPicks } = useMemo(() => {
         let channelling = 0, necromancy = 0, blackMagic = 0;
@@ -126,6 +163,18 @@ export const useLostHopeState = ({ availableSigilCounts }: { availableSigilCount
         if(blackMagicBoostSigil) used[blackMagicBoostSigil] += 1;
         return used;
     }, [selectedLostHopeSigils, isChannellingBoosted, isNecromancyBoosted, blackMagicBoostSigil]);
+    
+    const sigilTreeCost = useMemo(() => {
+        let cost = 0;
+        selectedLostHopeSigils.forEach(id => {
+            const sigil = LOST_HOPE_SIGIL_TREE_DATA.find(s => s.id === id);
+            const type = sigil ? getSigilTypeFromImage(sigil.imageSrc) : null;
+            if (type && SIGIL_BP_COSTS[type]) {
+                cost += SIGIL_BP_COSTS[type];
+            }
+        });
+        return cost;
+    }, [selectedLostHopeSigils]);
 
     return {
         selectedLostHopeSigils, handleLostHopeSigilSelect,
@@ -134,6 +183,14 @@ export const useLostHopeState = ({ availableSigilCounts }: { availableSigilCount
         selectedBlackMagic, handleBlackMagicSelect,
         isChannellingBoosted, isNecromancyBoosted, blackMagicBoostSigil, handleLostHopeBoostToggle,
         availableChannellingPicks, availableNecromancyPicks, availableBlackMagicPicks,
+        isMagicianApplied,
+        handleToggleMagician,
+        disableMagician,
+        sigilTreeCost,
+        undeadThrallCompanionName,
+        handleUndeadThrallCompanionAssign,
+        undeadBeastName,
+        handleUndeadBeastAssign,
         usedSigilCounts,
     };
 };

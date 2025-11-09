@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useCharacterContext } from '../../context/CharacterContext';
 import { BITTER_DISSATISFACTION_DATA, BITTER_DISSATISFACTION_SIGIL_TREE_DATA, BREWING_DATA, SOUL_ALCHEMY_DATA, TRANSFORMATION_DATA, BLESSING_ENGRAVINGS } from '../../constants';
-import type { BitterDissatisfactionPower, BitterDissatisfactionSigil } from '../../types';
-import { BlessingIntro, SectionHeader, SectionSubHeader, WeaponIcon } from '../ui';
+import type { BitterDissatisfactionPower, BitterDissatisfactionSigil, ChoiceItem } from '../../types';
+import { BlessingIntro, SectionHeader, SectionSubHeader, WeaponIcon, CompanionIcon } from '../ui';
 import { CompellingWillSigilCard, SigilColor } from '../CompellingWillSigilCard';
-import { ChoiceCard } from '../TraitCard';
 import { WeaponSelectionModal } from '../WeaponSelectionModal';
+import { CompanionSelectionModal } from '../SigilTreeOptionCard';
+import { BeastSelectionModal } from '../BeastSelectionModal';
 
 
 const sigilImageMap: {[key: string]: string} = { 'kaarn.png': 'kaarn', 'purth.png': 'purth', 'juathas.png': 'juathas', 'xuth.png': 'xuth', 'sinthru.png': 'sinthru', 'lekolu.png': 'lekolu' };
@@ -14,16 +15,97 @@ const getSigilTypeFromImage = (imageSrc: string): keyof typeof sigilImageMap | n
     return null;
 }
 
+const PowerCard: React.FC<{
+    power: ChoiceItem;
+    isSelected: boolean;
+    isDisabled: boolean;
+    onToggle: (id: string) => void;
+    children?: React.ReactNode;
+    iconButton?: React.ReactNode;
+    onIconButtonClick?: () => void;
+}> = ({ power, isSelected, isDisabled, onToggle, children, iconButton, onIconButtonClick }) => {
+    const wrapperClass = `bg-black/40 backdrop-blur-sm p-4 rounded-xl border flex flex-col text-center transition-all h-full ${
+        isSelected
+        ? 'border-purple-400 ring-2 ring-purple-400/50'
+        : isDisabled
+            ? 'opacity-50 cursor-not-allowed border-gray-800'
+            : 'border-white/10 hover:border-purple-400/70 cursor-pointer'
+    }`;
+
+    const handleIconClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        onIconButtonClick?.();
+    };
+    
+    return (
+        <div className={`${wrapperClass} relative`} onClick={() => !isDisabled && onToggle(power.id)}>
+            {iconButton && onIconButtonClick && isSelected && (
+                <button
+                    onClick={handleIconClick}
+                    className="absolute top-2 right-2 p-2 rounded-full bg-purple-900/50 text-purple-200/70 hover:bg-purple-800/60 hover:text-purple-100 transition-colors z-10"
+                    aria-label="Card action"
+                >
+                    {iconButton}
+                </button>
+            )}
+            <img src={power.imageSrc} alt={power.title} className="w-full h-40 rounded-md mb-4 object-cover" />
+            <h4 className="font-cinzel font-bold text-white tracking-wider text-xl">{power.title}</h4>
+            {power.cost && <p className="text-xs text-yellow-300/70 italic mt-1">{power.cost}</p>}
+            <div className="w-16 h-px bg-white/10 mx-auto my-2"></div>
+            <p className="text-xs text-gray-400 leading-relaxed flex-grow text-left whitespace-pre-wrap">{power.description}</p>
+            {children && (
+                 <div className="mt-4 pt-4 border-t border-gray-700/50">
+                    {children}
+                 </div>
+            )}
+        </div>
+    );
+};
+
 export const BitterDissatisfactionSection: React.FC = () => {
     const ctx = useCharacterContext();
     const [isWeaponModalOpen, setIsWeaponModalOpen] = useState(false);
+    const [isCompanionModalOpen, setIsCompanionModalOpen] = useState(false);
+    const [isBeastModalOpen, setIsBeastModalOpen] = useState(false);
+    const [beastmasterModalState, setBeastmasterModalState] = useState<{ isOpen: boolean, index: number | null }>({ isOpen: false, index: null });
+    const [isShedHumanityModalOpen, setIsShedHumanityModalOpen] = useState(false);
+    const [isMalrayootsMageModalOpen, setIsMalrayootsMageModalOpen] = useState(false);
+    const [isMalrayootsUniversalModalOpen, setIsMalrayootsUniversalModalOpen] = useState(false);
+    
     const {
         selectedBlessingEngraving,
         bitterDissatisfactionEngraving,
         handleBitterDissatisfactionEngravingSelect,
         bitterDissatisfactionWeaponName,
         handleBitterDissatisfactionWeaponAssign,
+        selectedTrueSelfTraits,
+        isBitterDissatisfactionMagicianApplied,
+        handleToggleBitterDissatisfactionMagician,
+        disableBitterDissatisfactionMagician,
+        bitterDissatisfactionSigilTreeCost,
+        humanMarionetteCount,
+        handleHumanMarionetteCountChange,
+        humanMarionetteCompanionName,
+        handleHumanMarionetteCompanionAssign,
+        totalBeastPoints,
+        mageFamiliarBeastName, handleMageFamiliarBeastAssign,
+        beastmasterCount, handleBeastmasterCountChange,
+        beastmasterBeastNames, handleBeastmasterBeastAssign,
+        shedHumanityPoints,
+        shedHumanityBeastName,
+        handleShedHumanityBeastAssign,
+        malrayootsMageFormName, handleMalrayootsMageFormAssign,
+        malrayootsUniversalFormName, handleMalrayootsUniversalFormAssign,
     } = useCharacterContext();
+
+    const finalEngraving = bitterDissatisfactionEngraving ?? selectedBlessingEngraving;
+    const isSkinEngraved = finalEngraving === 'skin';
+
+    useEffect(() => {
+        if (!isSkinEngraved && isBitterDissatisfactionMagicianApplied) {
+            disableBitterDissatisfactionMagician();
+        }
+    }, [isSkinEngraved, isBitterDissatisfactionMagicianApplied, disableBitterDissatisfactionMagician]);
 
     const isBitterDissatisfactionPowerDisabled = (power: BitterDissatisfactionPower, type: 'brewing' | 'soul_alchemy' | 'transformation'): boolean => {
         const selectedSet = type === 'brewing' ? ctx.selectedBrewing : type === 'soul_alchemy' ? ctx.selectedSoulAlchemy : ctx.selectedTransformation;
@@ -71,17 +153,12 @@ export const BitterDissatisfactionSection: React.FC = () => {
     };
     
     const boostDescriptions: { [key: string]: string } = {
-        // Brewing potions are handled with a general message.
-        
-        // Soul Alchemy
         'mages_familiar_i': "+10 Beast Points.",
         'mages_familiar_ii': "+10 Beast Points.",
         'mages_familiar_iii': "+10 Beast Points.",
         'human_marionettes': "+20 Companion Points.",
         'self_duplication': "Can create up to fifteen bodies, or twenty at the price of exhaustion.",
         'personification': "Changed items can change shape to become more humanlike, albeit without gaining size.",
-
-        // Transformation
         'material_transmutation': "Quadrupled rate of change.",
         'internal_manipulation': "Internals can have their individual durabilities doubled.",
         'shed_humanity_i': "+10 Beast Points.",
@@ -95,6 +172,15 @@ export const BitterDissatisfactionSection: React.FC = () => {
     const isBrewingBoostDisabled = !ctx.isBrewingBoosted && ctx.availableSigilCounts.kaarn <= 0;
     const isSoulAlchemyBoostDisabled = !ctx.isSoulAlchemyBoosted && ctx.availableSigilCounts.kaarn <= 0;
     const isTransformationBoostDisabled = !ctx.isTransformationBoosted && ctx.availableSigilCounts.kaarn <= 0;
+    
+    const isMagicianSelected = selectedTrueSelfTraits.has('magician');
+    const additionalCost = Math.floor(bitterDissatisfactionSigilTreeCost * 0.25);
+
+    const puppetCounts = [1, 2, 4, 5, 10, 20, 25, 50];
+    const boostedPuppetCounts = [1, 2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 24, 30, 40, 60];
+    const currentPuppetCounts = ctx.isSoulAlchemyBoosted ? boostedPuppetCounts : puppetCounts;
+    const totalPoints = ctx.isSoulAlchemyBoosted ? 120 : 100;
+    const pointsPerPuppet = humanMarionetteCount ? totalPoints / humanMarionetteCount : 0;
 
     return (
         <section>
@@ -105,7 +191,6 @@ export const BitterDissatisfactionSection: React.FC = () => {
                 </h4>
                 <div className="grid grid-cols-3 gap-4">
                     {BLESSING_ENGRAVINGS.map(engraving => {
-                        const finalEngraving = bitterDissatisfactionEngraving ?? selectedBlessingEngraving;
                         const isSelected = finalEngraving === engraving.id;
                         const isOverridden = bitterDissatisfactionEngraving !== null;
                         const isWeapon = engraving.id === 'weapon';
@@ -139,6 +224,22 @@ export const BitterDissatisfactionSection: React.FC = () => {
                         );
                     })}
                 </div>
+                {isMagicianSelected && isSkinEngraved && (
+                    <div className="text-center mt-4">
+                        <button
+                            onClick={handleToggleBitterDissatisfactionMagician}
+                            className={`px-6 py-3 text-sm rounded-lg border transition-colors ${
+                                isBitterDissatisfactionMagicianApplied
+                                    ? 'bg-purple-800/60 border-purple-500 text-white'
+                                    : 'bg-gray-800/50 border-gray-700 text-gray-300 hover:border-purple-500/70'
+                            }`}
+                        >
+                            {isBitterDissatisfactionMagicianApplied
+                                ? `The 'Magician' trait is applied. Click to remove. (+${additionalCost} BP)`
+                                : `Click to apply the 'Magician' trait from your True Self. This allows you to use the Blessing without transforming for an additional ${additionalCost} BP.`}
+                        </button>
+                    </div>
+                )}
             </div>
 
             {isWeaponModalOpen && (
@@ -199,7 +300,7 @@ export const BitterDissatisfactionSection: React.FC = () => {
                 )}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                     {BREWING_DATA.map(power => {
-                        return <ChoiceCard key={power.id} item={{...power, cost: ''}} isSelected={ctx.selectedBrewing.has(power.id)} onSelect={ctx.handleBrewingSelect} disabled={isBitterDissatisfactionPowerDisabled(power, 'brewing')} selectionColor="amber" />
+                        return <PowerCard key={power.id} power={{...power, cost: ''}} isSelected={ctx.selectedBrewing.has(power.id)} onToggle={ctx.handleBrewingSelect} isDisabled={isBitterDissatisfactionPowerDisabled(power, 'brewing')} />
                     })}
                 </div>
             </div>
@@ -216,36 +317,112 @@ export const BitterDissatisfactionSection: React.FC = () => {
                 </div>
                 <SectionSubHeader>Picks Available: {ctx.availableSoulAlchemyPicks - ctx.selectedSoulAlchemy.size} / {ctx.availableSoulAlchemyPicks}</SectionSubHeader>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    {(() => {
-                        const specialPower = SOUL_ALCHEMY_DATA.find(p => p.id === 'human_marionettes');
-                        const otherPowers = SOUL_ALCHEMY_DATA.filter(p => p.id !== 'human_marionettes');
-                        const firstHalf = otherPowers.slice(0, 3);
-                        const secondHalf = otherPowers.slice(3);
+                    {SOUL_ALCHEMY_DATA.map(power => {
+                        const boostedText = ctx.isSoulAlchemyBoosted && boostDescriptions[power.id] ? `\n\nBOOSTED: ${boostDescriptions[power.id]}` : '';
+                        const isSelected = ctx.selectedSoulAlchemy.has(power.id);
+                        const isDisabled = isBitterDissatisfactionPowerDisabled(power, 'soul_alchemy');
 
-                        const renderPower = (power: BitterDissatisfactionPower) => {
-                             const boostedText = ctx.isSoulAlchemyBoosted && boostDescriptions[power.id] ? `\n\nBOOSTED: ${boostDescriptions[power.id]}` : '';
-                             return <ChoiceCard 
-                                key={power.id} 
-                                item={{...power, cost: '', description: power.description + boostedText}} 
-                                isSelected={ctx.selectedSoulAlchemy.has(power.id)} 
-                                onSelect={ctx.handleSoulAlchemySelect} 
-                                disabled={isBitterDissatisfactionPowerDisabled(power, 'soul_alchemy')} 
-                                selectionColor="amber" 
-                            />
-                        };
+                        const isFamiliar1 = power.id === 'mages_familiar_i';
+                        const isFamiliar2 = power.id === 'mages_familiar_ii';
+                        const isFamiliar3 = power.id === 'mages_familiar_iii';
+                        const isFamiliar1Selected = ctx.selectedSoulAlchemy.has('mages_familiar_i');
+                        const isFamiliar2Selected = ctx.selectedSoulAlchemy.has('mages_familiar_ii');
+                        const isFamiliar3Selected = ctx.selectedSoulAlchemy.has('mages_familiar_iii');
+                        const isBeastmasterSelected = ctx.selectedSoulAlchemy.has('beastmaster');
                         
-                        return (
-                            <>
-                                {firstHalf.map(renderPower)}
-                                {specialPower && (
-                                    <div key={specialPower.id} className="lg:row-span-2">
-                                        {renderPower(specialPower)}
+                        const showButtonOn1 = isFamiliar1 && isFamiliar1Selected && !isFamiliar2Selected && !isBeastmasterSelected;
+                        const showButtonOn2 = isFamiliar2 && isFamiliar2Selected && !isFamiliar3Selected && !isBeastmasterSelected;
+                        const showButtonOn3 = isFamiliar3 && isFamiliar3Selected && !isBeastmasterSelected;
+
+                        const powerCard = (
+                            <PowerCard
+                                power={{...power, cost: '', description: power.description + boostedText}} 
+                                isSelected={isSelected}
+                                onToggle={ctx.handleSoulAlchemySelect}
+                                isDisabled={isDisabled}
+                                iconButton={
+                                    (power.id === 'beastmaster' && isBeastmasterSelected) ? <CompanionIcon /> :
+                                    (showButtonOn1 || showButtonOn2 || showButtonOn3) ? <CompanionIcon /> : undefined
+                                }
+                                onIconButtonClick={
+                                    (power.id === 'beastmaster' && isBeastmasterSelected) ? () => setBeastmasterModalState({isOpen: true, index: 0}) :
+                                    (showButtonOn1 || showButtonOn2 || showButtonOn3) ? () => setIsBeastModalOpen(true) : undefined
+                                }
+                            >
+                                {isSelected && power.id === 'human_marionettes' && (
+                                    <div className="space-y-3">
+                                        <select
+                                            value={humanMarionetteCount ?? ''}
+                                            onChange={(e) => handleHumanMarionetteCountChange(e.target.value ? parseInt(e.target.value, 10) : null)}
+                                            className="w-full bg-slate-800/70 border border-gray-600 rounded-md p-2 text-white text-sm"
+                                            onClick={(e) => e.stopPropagation()}
+                                        >
+                                            <option value="">Select number of puppets</option>
+                                            {currentPuppetCounts.map(count => (
+                                                <option key={count} value={count}>{count} puppet{count > 1 ? 's' : ''} ({totalPoints/count} CP each)</option>
+                                            ))}
+                                        </select>
+                                        {humanMarionetteCount && (
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); setIsCompanionModalOpen(true); }}
+                                                className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-md bg-purple-800/50 border border-purple-600 text-purple-200 hover:bg-purple-700/60 transition-colors"
+                                            >
+                                                <CompanionIcon />
+                                                <span>Assign Build</span>
+                                            </button>
+                                        )}
+                                        {humanMarionetteCompanionName && (
+                                            <div className="text-center text-xs text-gray-400">
+                                                Assigned: <span className="font-bold text-amber-300">{humanMarionetteCompanionName}</span>
+                                            </div>
+                                        )}
                                     </div>
                                 )}
-                                {secondHalf.map(renderPower)}
-                            </>
+                                {isSelected && power.id === 'beastmaster' && (
+                                    <div className="space-y-3">
+                                        <select
+                                            value={beastmasterCount ?? ''}
+                                            onChange={(e) => handleBeastmasterCountChange(e.target.value ? parseInt(e.target.value, 10) : null)}
+                                            className="w-full bg-slate-800/70 border border-gray-600 rounded-md p-2 text-white text-sm"
+                                            onClick={(e) => e.stopPropagation()}
+                                        >
+                                            <option value="">Select number of familiars</option>
+                                            {[...Array(totalBeastPoints)].map((_, i) => i + 1).filter(num => num > 0 && totalBeastPoints % num === 0).map(count => (
+                                                <option key={count} value={count}>{count} familiar{count > 1 ? 's' : ''} ({totalBeastPoints/count} BP each)</option>
+                                            ))}
+                                        </select>
+                                        {beastmasterCount && Array.from({ length: beastmasterCount }).map((_, index) => (
+                                             <div key={index} className="flex items-center justify-between bg-slate-800/50 p-2 rounded-md">
+                                                <span className="text-sm text-gray-300 truncate">Familiar #{index + 1}: <em className="text-amber-300">{beastmasterBeastNames[index] || 'None'}</em></span>
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); setBeastmasterModalState({isOpen: true, index}); }}
+                                                    className="p-2 rounded-full bg-amber-900/50 text-amber-200/70 hover:bg-amber-800/60 hover:text-amber-100 transition-colors flex-shrink-0"
+                                                    aria-label={`Select Beast for Familiar ${index + 1}`}
+                                                >
+                                                    <CompanionIcon />
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                                 {(isFamiliar1 || isFamiliar2 || isFamiliar3) && mageFamiliarBeastName && !isBeastmasterSelected && isSelected && (
+                                     <div className="text-center">
+                                        <p className="text-xs text-gray-400">Assigned Familiar:</p>
+                                        <p className="text-sm font-bold text-amber-300">{mageFamiliarBeastName}</p>
+                                    </div>
+                                 )}
+                            </PowerCard>
                         );
-                    })()}
+
+                        if (power.id === 'human_marionettes' || power.id === 'beastmaster') {
+                            return (
+                                <div key={power.id} className="lg:row-span-2">
+                                    {powerCard}
+                                </div>
+                            )
+                        }
+                        return <React.Fragment key={power.id}>{powerCard}</React.Fragment>
+                    })}
                 </div>
             </div>
             <div className="mt-16 px-4 lg:px-8">
@@ -263,10 +440,135 @@ export const BitterDissatisfactionSection: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                     {TRANSFORMATION_DATA.map(power => {
                         const boostedText = ctx.isTransformationBoosted && boostDescriptions[power.id] ? `\n\nBOOSTED: ${boostDescriptions[power.id]}` : '';
-                        return <ChoiceCard key={power.id} item={{...power, cost: '', description: power.description + boostedText}} isSelected={ctx.selectedTransformation.has(power.id)} onSelect={ctx.handleTransformationSelect} disabled={isBitterDissatisfactionPowerDisabled(power, 'transformation')} selectionColor="amber" />
+                        const isSelected = ctx.selectedTransformation.has(power.id);
+                        
+                        const isShedHumanity1 = power.id === 'shed_humanity_i';
+                        const isShedHumanity2 = power.id === 'shed_humanity_ii';
+                        const isShedHumanity1Selected = ctx.selectedTransformation.has('shed_humanity_i');
+                        const isShedHumanity2Selected = ctx.selectedTransformation.has('shed_humanity_ii');
+
+                        const isMalrayoots = power.id === 'malrayoots';
+
+                        const showButtonOn1 = isShedHumanity1 && isShedHumanity1Selected && !isShedHumanity2Selected;
+                        const showButtonOn2 = isShedHumanity2 && isShedHumanity2Selected;
+
+                        return <PowerCard 
+                            key={power.id} 
+                            power={{...power, cost: '', description: power.description + boostedText}} 
+                            isSelected={isSelected} 
+                            onToggle={ctx.handleTransformationSelect} 
+                            isDisabled={isBitterDissatisfactionPowerDisabled(power, 'transformation')} 
+                            iconButton={(showButtonOn1 || showButtonOn2) ? <CompanionIcon /> : undefined}
+                            onIconButtonClick={(showButtonOn1 || showButtonOn2) ? () => setIsShedHumanityModalOpen(true) : undefined}
+                        >
+                            {(isShedHumanity1 || isShedHumanity2) && isShedHumanity1Selected && shedHumanityBeastName && (
+                                <div className="text-center">
+                                    <p className="text-xs text-gray-400">Assigned Form:</p>
+                                    <p className="text-sm font-bold text-amber-300">{shedHumanityBeastName}</p>
+                                </div>
+                            )}
+                             {isMalrayoots && isSelected && (
+                                <div className="space-y-2">
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); setIsMalrayootsMageModalOpen(true); }}
+                                        className="w-full px-3 py-2 text-sm rounded-md bg-purple-800/50 border border-purple-600 text-purple-200 hover:bg-purple-700/60 transition-colors"
+                                    >
+                                        Assign Mage Form ({ctx.isTransformationBoosted ? 80 : 70} BP)
+                                    </button>
+                                    {malrayootsMageFormName && (
+                                        <p className="text-xs text-center text-gray-400">Assigned: <span className="font-bold text-amber-300">{malrayootsMageFormName}</span></p>
+                                    )}
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); setIsMalrayootsUniversalModalOpen(true); }}
+                                        className="w-full px-3 py-2 text-sm rounded-md bg-purple-800/50 border border-purple-600 text-purple-200 hover:bg-purple-700/60 transition-colors"
+                                    >
+                                        Assign Universal Form ({ctx.isTransformationBoosted ? 50 : 40} BP)
+                                    </button>
+                                    {malrayootsUniversalFormName && (
+                                        <p className="text-xs text-center text-gray-400">Assigned: <span className="font-bold text-amber-300">{malrayootsUniversalFormName}</span></p>
+                                    )}
+                                </div>
+                            )}
+                        </PowerCard>
                     })}
                 </div>
             </div>
+            {isCompanionModalOpen && humanMarionetteCount && (
+                <CompanionSelectionModal
+                    onClose={() => setIsCompanionModalOpen(false)}
+                    onSelect={(name) => {
+                        handleHumanMarionetteCompanionAssign(name);
+                        setIsCompanionModalOpen(false);
+                    }}
+                    currentCompanionName={humanMarionetteCompanionName}
+                    pointLimit={pointsPerPuppet}
+                    title="Assign Puppet Build"
+                    categoryFilter="puppet"
+                />
+            )}
+            {isBeastModalOpen && (
+                <BeastSelectionModal
+                    onClose={() => setIsBeastModalOpen(false)}
+                    onSelect={(name) => {
+                        handleMageFamiliarBeastAssign(name);
+                        setIsBeastModalOpen(false);
+                    }}
+                    currentBeastName={mageFamiliarBeastName}
+                    pointLimit={totalBeastPoints}
+                    title="Assign Familiar"
+                />
+            )}
+            {beastmasterModalState.isOpen && beastmasterModalState.index !== null && beastmasterCount && (
+                 <BeastSelectionModal
+                    onClose={() => setBeastmasterModalState({isOpen: false, index: null})}
+                    onSelect={(name) => {
+                        if (beastmasterModalState.index !== null) {
+                            handleBeastmasterBeastAssign(beastmasterModalState.index, name);
+                        }
+                        setBeastmasterModalState({isOpen: false, index: null});
+                    }}
+                    currentBeastName={beastmasterBeastNames[beastmasterModalState.index]}
+                    pointLimit={totalBeastPoints / beastmasterCount}
+                    title={`Assign Familiar #${beastmasterModalState.index + 1}`}
+                />
+            )}
+            {isShedHumanityModalOpen && (
+                <BeastSelectionModal
+                    onClose={() => setIsShedHumanityModalOpen(false)}
+                    onSelect={(name) => {
+                        handleShedHumanityBeastAssign(name);
+                        setIsShedHumanityModalOpen(false);
+                    }}
+                    currentBeastName={shedHumanityBeastName}
+                    pointLimit={shedHumanityPoints}
+                    title="Assign Transformed Form"
+                    excludedPerkIds={['chatterbox_beast', 'magical_beast']}
+                />
+            )}
+            {isMalrayootsMageModalOpen && (
+                <BeastSelectionModal
+                    onClose={() => setIsMalrayootsMageModalOpen(false)}
+                    onSelect={(name) => {
+                        handleMalrayootsMageFormAssign(name);
+                        setIsMalrayootsMageModalOpen(false);
+                    }}
+                    currentBeastName={malrayootsMageFormName}
+                    pointLimit={ctx.isTransformationBoosted ? 80 : 70}
+                    title="Assign Mage Form"
+                />
+            )}
+            {isMalrayootsUniversalModalOpen && (
+                <BeastSelectionModal
+                    onClose={() => setIsMalrayootsUniversalModalOpen(false)}
+                    onSelect={(name) => {
+                        handleMalrayootsUniversalFormAssign(name);
+                        setIsMalrayootsUniversalModalOpen(false);
+                    }}
+                    currentBeastName={malrayootsUniversalFormName}
+                    pointLimit={ctx.isTransformationBoosted ? 50 : 40}
+                    title="Assign Universal Form"
+                />
+            )}
         </section>
     );
 };

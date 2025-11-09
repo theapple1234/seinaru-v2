@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 // FIX: Import Dispatch and SetStateAction to resolve React namespace errors.
 import type { Dispatch, SetStateAction } from 'react';
 import type { SigilCounts } from '../../types';
@@ -10,12 +10,29 @@ const getSigilTypeFromImage = (imageSrc: string): keyof SigilCounts | null => {
     return null;
 }
 
+const SIGIL_BP_COSTS: Record<string, number> = { kaarn: 3, purth: 5, juathas: 8, xuth: 12, lekolu: 4, sinthru: 10 };
+
 export const useCompellingWillState = ({ availableSigilCounts }: { availableSigilCounts: SigilCounts }) => {
     const [selectedCompellingWillSigils, setSelectedCompellingWillSigils] = useState<Set<string>>(new Set());
     const [selectedTelekinetics, setSelectedTelekinetics] = useState<Set<string>>(new Set());
     const [selectedMetathermics, setSelectedMetathermics] = useState<Set<string>>(new Set());
     const [isTelekineticsBoosted, setIsTelekineticsBoosted] = useState(false);
     const [isMetathermicsBoosted, setIsMetathermicsBoosted] = useState(false);
+    const [isMagicianApplied, setIsMagicianApplied] = useState(false);
+    const [thermalWeaponryWeaponName, setThermalWeaponryWeaponName] = useState<string | null>(null);
+
+    const handleThermalWeaponryWeaponAssign = (name: string | null) => {
+        setThermalWeaponryWeaponName(name);
+    };
+
+    useEffect(() => {
+        if (!selectedMetathermics.has('thermal_weaponry')) {
+            setThermalWeaponryWeaponName(null);
+        }
+    }, [selectedMetathermics]);
+
+    const handleToggleMagician = () => setIsMagicianApplied(prev => !prev);
+    const disableMagician = () => setIsMagicianApplied(false);
 
     const { availableTelekineticsPicks, availableMetathermicsPicks } = useMemo(() => {
         let telekinetics = 0;
@@ -71,7 +88,7 @@ export const useCompellingWillState = ({ availableSigilCounts }: { availableSigi
         } else {
             const canSelect = sigil.prerequisites.every(p => newSelected.has(p));
             const sigilType = getSigilTypeFromImage(sigil.imageSrc);
-            const hasSigil = sigilType ? availableSigilCounts[sigilType] > 0 : true;
+            const hasSigil = sigilType ? availableSigilCounts[sigilType as keyof typeof availableSigilCounts] > 0 : true;
 
             if (canSelect && hasSigil) {
                 newSelected.add(sigilId);
@@ -119,6 +136,18 @@ export const useCompellingWillState = ({ availableSigilCounts }: { availableSigi
         if (isMetathermicsBoosted) used.purth += 1;
         return used;
     }, [selectedCompellingWillSigils, isTelekineticsBoosted, isMetathermicsBoosted]);
+    
+    const sigilTreeCost = useMemo(() => {
+        let cost = 0;
+        selectedCompellingWillSigils.forEach(id => {
+            const sigil = COMPELLING_WILL_SIGIL_TREE_DATA.find(s => s.id === id);
+            const type = sigil ? getSigilTypeFromImage(sigil.imageSrc) : null;
+            if (type && SIGIL_BP_COSTS[type]) {
+                cost += SIGIL_BP_COSTS[type];
+            }
+        });
+        return cost;
+    }, [selectedCompellingWillSigils]);
 
     return {
         selectedCompellingWillSigils, handleCompellingWillSigilSelect,
@@ -127,6 +156,12 @@ export const useCompellingWillState = ({ availableSigilCounts }: { availableSigi
         availableTelekineticsPicks, availableMetathermicsPicks,
         isTelekineticsBoosted, isMetathermicsBoosted,
         handleCompellingWillBoostToggle,
+        isMagicianApplied,
+        handleToggleMagician,
+        disableMagician,
+        sigilTreeCost,
+        thermalWeaponryWeaponName,
+        handleThermalWeaponryWeaponAssign,
         usedSigilCounts,
     };
 };

@@ -38,15 +38,20 @@ interface WeaponSelectionModalProps {
     currentWeaponName: string | null;
     onClose: () => void;
     onSelect: (weaponName: string | null) => void;
+    pointLimit?: number;
+    title?: string;
+    categoryFilter?: string | string[];
 }
 
 export const WeaponSelectionModal: React.FC<WeaponSelectionModalProps> = ({
     currentWeaponName,
     onClose,
     onSelect,
+    pointLimit = 20,
+    title = 'Assign Weapon',
+    categoryFilter,
 }) => {
     const [weaponBuilds, setWeaponBuilds] = useState<Record<string, { points: number }>>({});
-    const WEAPON_POINT_LIMIT = 20;
 
     useEffect(() => {
         const savedBuildsJSON = localStorage.getItem(STORAGE_KEY);
@@ -60,6 +65,14 @@ export const WeaponSelectionModal: React.FC<WeaponSelectionModalProps> = ({
                     const build = weapons[name];
                     if (build.version === 1) {
                         const hydratedData = hydrateWeaponData(build.data);
+                        
+                        if (categoryFilter) {
+                            const filterArray = Array.isArray(categoryFilter) ? categoryFilter : [categoryFilter];
+                            if (!hydratedData.category || !filterArray.includes(hydratedData.category)) {
+                                continue;
+                            }
+                        }
+
                         const points = calculateWeaponPoints(hydratedData);
                         buildsWithPoints[name] = { points };
                     }
@@ -69,7 +82,7 @@ export const WeaponSelectionModal: React.FC<WeaponSelectionModalProps> = ({
                 console.error("Failed to parse weapon builds from storage:", error);
             }
         }
-    }, []);
+    }, [categoryFilter]);
 
     useEffect(() => {
         const handleKeyDown = (event: KeyboardEvent) => {
@@ -83,6 +96,15 @@ export const WeaponSelectionModal: React.FC<WeaponSelectionModalProps> = ({
             window.removeEventListener('keydown', handleKeyDown);
         };
     }, [onClose]);
+
+    const noBuildsMessage = () => {
+        let message = "No compatible weapon builds found. Go to the Reference Page to create one.";
+        if (categoryFilter) {
+            const categories = Array.isArray(categoryFilter) ? categoryFilter.join(', ') : categoryFilter;
+            message += ` Make sure it has one of the following categories: ${categories.toUpperCase()}.`;
+        }
+        return message;
+    };
 
     return (
         <div
@@ -98,7 +120,7 @@ export const WeaponSelectionModal: React.FC<WeaponSelectionModalProps> = ({
             >
                 <header className="flex items-center justify-between p-4 border-b border-purple-900/50">
                     <h2 id="weapon-modal-title" className="font-cinzel text-2xl text-purple-200">
-                        Assign Weapon
+                        {title}
                     </h2>
                     <button
                         onClick={onClose}
@@ -110,15 +132,15 @@ export const WeaponSelectionModal: React.FC<WeaponSelectionModalProps> = ({
                 </header>
                 <main className="p-6 overflow-y-auto">
                     <p className="text-center text-sm text-purple-300/80 mb-4 italic">
-                        Select a weapon build that costs 20 Weapon Points or less.
+                        Select a weapon build that costs {pointLimit} Weapon Points or less.
+                        {categoryFilter && ` Must have category: ${Array.isArray(categoryFilter) ? categoryFilter.join(' or ').toUpperCase() : categoryFilter.toUpperCase()}.`}
                     </p>
                     <div className="space-y-3">
                         {Object.keys(weaponBuilds).length > 0 ? (
-                            // FIX: Replaced Object.entries with Object.keys to fix a TypeScript inference issue where the build's value was incorrectly typed as '{}'.
                             Object.keys(weaponBuilds).map((name) => {
                                 const { points } = weaponBuilds[name];
                                 const isSelected = name === currentWeaponName;
-                                const isDisabled = points > WEAPON_POINT_LIMIT;
+                                const isDisabled = points > pointLimit;
                                 const costColor = isDisabled ? 'text-red-500' : 'text-green-400';
                                 
                                 return (
@@ -139,7 +161,7 @@ export const WeaponSelectionModal: React.FC<WeaponSelectionModalProps> = ({
                                         <div>
                                             <h3 className="font-semibold text-white">{name}</h3>
                                             <p className="text-xs text-gray-400">
-                                                {isDisabled ? `Cost exceeds ${WEAPON_POINT_LIMIT} points` : 'Click to assign this weapon'}
+                                                {isDisabled ? `Cost exceeds ${pointLimit} points` : 'Click to assign this weapon'}
                                             </p>
                                         </div>
                                         <span className={`font-bold text-lg ${costColor}`}>
@@ -150,7 +172,7 @@ export const WeaponSelectionModal: React.FC<WeaponSelectionModalProps> = ({
                             })
                         ) : (
                             <p className="text-center text-gray-500 italic py-8">
-                                No weapon builds found. Go to the Reference Page to create one!
+                                {noBuildsMessage()}
                             </p>
                         )}
                     </div>

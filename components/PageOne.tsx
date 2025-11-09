@@ -9,8 +9,10 @@ import type { Dominion } from '../types';
 import { DominionCard } from './DominionCard';
 import { PointCard } from './PointCard';
 import { ChoiceCard } from './TraitCard';
-import { SectionHeader, SectionSubHeader } from './ui';
+import { SectionHeader, SectionSubHeader, VehicleIcon, CompanionIcon } from './ui';
 import { VehicleSelectionModal } from './VehicleSelectionModal';
+import { CompanionSelectionModal } from './SigilTreeOptionCard';
+import { BeastSelectionModal } from './BeastSelectionModal';
 
 interface CounterProps {
     label: string;
@@ -32,12 +34,6 @@ const Counter: React.FC<CounterProps> = ({ label, count, onCountChange, unit, co
     </div>
 );
 
-const VehicleIcon: React.FC = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
-        <path fillRule="evenodd" d="M18.316 6.383c.25.344.31.787.163 1.189l-1.55 4.135a1.5 1.5 0 01-1.429 1.043H4.5a1.5 1.5 0 01-1.429-1.043L1.52 7.572a1.5 1.5 0 01.163-1.189A1.5 1.5 0 013 6h14a1.5 1.5 0 011.316.383zM4.341 14a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zm11.318 0a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" clipRule="evenodd" />
-    </svg>
-);
-
 export const PageOne: React.FC = () => {
     const {
         selectedDominionId, blessingPoints, fortunePoints,
@@ -53,10 +49,17 @@ export const PageOne: React.FC = () => {
         mansionExtraSqFt, handleMansionSqFtChange,
         islandExtraMiles, handleIslandMilesChange,
         vrChamberCostType, handleVrChamberCostSelect,
-        assignedVehicleName, handleAssignVehicle
+        assignedVehicleName, handleAssignVehicle,
+        blessedCompanions, handleAssignBlessedCompanion,
+        mythicalPetBeastName, handleAssignMythicalPet,
+        inhumanAppearanceBeastName, handleAssignInhumanAppearance,
     } = useCharacterContext();
 
     const [isVehicleModalOpen, setIsVehicleModalOpen] = useState(false);
+    const [isBlessedModalOpen, setIsBlessedModalOpen] = useState(false);
+    const [isMythicalPetModalOpen, setIsMythicalPetModalOpen] = useState(false);
+    const [isInhumanAppearanceModalOpen, setIsInhumanAppearanceModalOpen] = useState(false);
+
 
     const getFamilyMemberColor = (index: number): string => {
         const colors = [
@@ -246,8 +249,6 @@ export const PageOne: React.FC = () => {
                     }
                 }
 
-                // Logic for conditional outlines and selection state
-                // FIX: Refactor to avoid destructuring in callbacks which can confuse TS type inference.
                 const allAssignmentsForTrait = Array.from(assignedTraits.entries())
                     .filter(entry => entry[1].has(trait.id));
                 
@@ -255,7 +256,6 @@ export const PageOne: React.FC = () => {
                 let displayedColors: string[] = [];
 
                 if (selectedFamilyMemberId) {
-                    // Member is selected. Only show their assignment.
                     const selectedMemberAssignment = allAssignmentsForTrait.find(entry => entry[0] === selectedFamilyMemberId);
                     if (selectedMemberAssignment) {
                         isSelectedForCard = true;
@@ -266,7 +266,6 @@ export const PageOne: React.FC = () => {
                         displayedColors.push(getFamilyMemberColor(colorIndex));
                     }
                 } else {
-                    // No member is selected. Show all assignments.
                     isSelectedForCard = allAssignmentsForTrait.length > 0;
                     displayedColors = allAssignmentsForTrait.map(entry => {
                         const memberId = entry[0];
@@ -276,17 +275,31 @@ export const PageOne: React.FC = () => {
                         return getFamilyMemberColor(colorIndex);
                     });
                 }
+
+                const isBlessedTrait = trait.id === 'blessed';
+                const selectedMemberHasBlessed = selectedFamilyMemberId ? (assignedTraits.get(selectedFamilyMemberId)?.has('blessed') ?? false) : false;
                 
-                return <ChoiceCard 
-                    key={trait.id} 
-                    item={trait} 
-                    isSelected={isSelectedForCard} 
-                    assignedColors={displayedColors} 
-                    onSelect={handleTraitSelect} 
-                    disabled={isTraitDisabled}
-                    layout="horizontal" 
-                    imageShape="rect" 
-                />;
+                return (
+                    <ChoiceCard 
+                        key={trait.id} 
+                        item={trait} 
+                        isSelected={isSelectedForCard} 
+                        assignedColors={displayedColors} 
+                        onSelect={handleTraitSelect} 
+                        disabled={!selectedFamilyMemberId || isTraitDisabled}
+                        layout="horizontal" 
+                        imageShape="rect" 
+                        iconButton={isBlessedTrait && selectedMemberHasBlessed ? <CompanionIcon /> : undefined}
+                        onIconButtonClick={isBlessedTrait && selectedMemberHasBlessed ? () => setIsBlessedModalOpen(true) : undefined}
+                    >
+                         {isBlessedTrait && selectedMemberHasBlessed && blessedCompanions.get(selectedFamilyMemberId) && (
+                            <div className="text-center mt-2">
+                                <p className="text-xs text-gray-400">Assigned:</p>
+                                <p className="text-sm font-bold text-cyan-300">{blessedCompanions.get(selectedFamilyMemberId)}</p>
+                            </div>
+                        )}
+                    </ChoiceCard>
+                );
             })}
             </div>
         </section>
@@ -314,6 +327,9 @@ export const PageOne: React.FC = () => {
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6">
                 {HOUSE_UPGRADES_DATA.map(upgrade => {
                     const isVrChamber = upgrade.id === 'virtual_reality';
+                    const isMythicalPet = upgrade.id === 'mythical_pet';
+                    const isMythicalPetSelected = selectedUpgrades.has('mythical_pet');
+
                     return (
                         <ChoiceCard
                             key={upgrade.id}
@@ -321,6 +337,8 @@ export const PageOne: React.FC = () => {
                             isSelected={isVrChamber ? vrChamberCostType !== null : selectedUpgrades.has(upgrade.id)}
                             alwaysShowChildren={isVrChamber ? selectedUpgrades.has(upgrade.id) : false}
                             onSelect={handleUpgradeSelect}
+                            iconButton={isMythicalPet && isMythicalPetSelected ? <CompanionIcon /> : undefined}
+                            onIconButtonClick={isMythicalPet && isMythicalPetSelected ? () => setIsMythicalPetModalOpen(true) : undefined}
                         >
                         {upgrade.id === 'private_island' && (
                             <Counter label="Additional Space" count={islandExtraMiles} onCountChange={handleIslandMilesChange} unit="" cost="-1 FP each" displayMultiplier={1000} />
@@ -341,61 +359,74 @@ export const PageOne: React.FC = () => {
                                     </button>
                             </div>
                         )}
+                        {isMythicalPet && isMythicalPetSelected && mythicalPetBeastName && (
+                            <div className="text-center mt-2">
+                                <p className="text-xs text-gray-400">Assigned:</p>
+                                {/* FIX: Completed incomplete variable name */}
+                                <p className="text-sm font-bold text-cyan-300">{mythicalPetBeastName}</p>
+                            </div>
+                        )}
                         </ChoiceCard>
                     );
                 })}
             </div>
         </section>
 
+        {/* True Self Section */}
+        <section className="my-16">
+            <SectionHeader>Design Your True Self</SectionHeader>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {TRUE_SELF_TRAITS.map(trait => (
+                    <ChoiceCard 
+                        key={trait.id} 
+                        item={trait} 
+                        isSelected={selectedTrueSelfTraits.has(trait.id)} 
+                        onSelect={handleTrueSelfTraitSelect} 
+                    />
+                ))}
+            </div>
+        </section>
+
         {/* Alter Ego Section */}
         <section className="my-16">
-            <SectionHeader>Design yourself and your Alter Ego</SectionHeader>
-
-            <div className="flex flex-col items-center text-center">
-            <img src="https://saviapple.neocities.org/Seinaru_Magecraft_Girls/img/Pg1/main4.jpg" alt="Alter Ego concept"
-                className="rounded-full w-80 h-80 object-cover border-4 border-gray-700 shadow-lg mb-8" />
-            <div className="max-w-4xl mx-auto text-gray-300 leading-relaxed space-y-4">
-                <p>
-                    In around the 3000's, the Magus councils and secret societies began to rethink the raising of Mages. It was found being a celebrity from early childhood often had a harmful effect on their psychological development; worse, their enemies would often force them into acquiescing by threatening to go after their family members and other loved ones. Thus, the Dominions agreed on the establishment of the Alter Ego system.
-                </p>
-                <p>
-                    You will have two forms: your alter ego, who will be known by all, and your secret identity, whose location and nature will be kept confidential. Memory wiping cantrips can easily be used in the case someone accidentally finds out about your identity. Most people support mages, and will thus happily submit to this process; however, some may want to use their knowledge to sabotage you, so be careful! You will be able to transform between your real self and your alter ego at will, though this will take a few seconds.
-                </p>
-            </div>
-            </div>
-
-            <SectionSubHeader>Here, you can purchase traits for your True Self.</SectionSubHeader>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {TRUE_SELF_TRAITS.map(trait => (
-                <ChoiceCard key={trait.id} item={trait} isSelected={selectedTrueSelfTraits.has(trait.id)} onSelect={handleTrueSelfTraitSelect} />
-            ))}
-            </div>
-
-            <SectionSubHeader>Here, you can purchase traits for your Alter Ego.</SectionSubHeader>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {ALTER_EGO_TRAITS.map(trait => {
-                 const isSigVehicle = trait.id === 'signature_vehicle';
-                 const sigVehicleSelected = selectedAlterEgoTraits.has('signature_vehicle');
-
-                return (
-                    <ChoiceCard
-                        key={trait.id}
-                        item={trait}
-                        isSelected={selectedAlterEgoTraits.has(trait.id)}
-                        onSelect={handleAlterEgoTraitSelect}
-                        iconButton={isSigVehicle && sigVehicleSelected ? <VehicleIcon /> : undefined}
-                        onIconButtonClick={isSigVehicle && sigVehicleSelected ? () => setIsVehicleModalOpen(true) : undefined}
-                        imageRounding="lg"
-                    >
-                         {isSigVehicle && assignedVehicleName && (
-                            <div className="text-center mt-2">
-                                <p className="text-xs text-gray-400">Assigned:</p>
-                                <p className="text-sm font-bold text-cyan-300">{assignedVehicleName}</p>
-                            </div>
-                        )}
-                    </ChoiceCard>
-                );
-            })}
+            <SectionHeader>Design Your Alter Ego</SectionHeader>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {ALTER_EGO_TRAITS.map(trait => {
+                    const isInhumanAppearance = trait.id === 'inhuman_appearance';
+                    const isSignatureVehicle = trait.id === 'signature_vehicle';
+                    const isSelected = selectedAlterEgoTraits.has(trait.id);
+                    
+                    return (
+                        <ChoiceCard 
+                            key={trait.id} 
+                            item={trait} 
+                            isSelected={isSelected} 
+                            onSelect={handleAlterEgoTraitSelect} 
+                            disabled={trait.requires === 'Exotic Appearance' && !selectedAlterEgoTraits.has('exotic_appearance')}
+                            iconButton={
+                                (isInhumanAppearance && isSelected) ? <CompanionIcon /> :
+                                (isSignatureVehicle && isSelected) ? <VehicleIcon /> : undefined
+                            }
+                            onIconButtonClick={
+                                (isInhumanAppearance && isSelected) ? () => setIsInhumanAppearanceModalOpen(true) :
+                                (isSignatureVehicle && isSelected) ? () => setIsVehicleModalOpen(true) : undefined
+                            }
+                        >
+                            {isInhumanAppearance && isSelected && inhumanAppearanceBeastName && (
+                                <div className="text-center mt-2">
+                                    <p className="text-xs text-gray-400">Assigned:</p>
+                                    <p className="text-sm font-bold text-cyan-300">{inhumanAppearanceBeastName}</p>
+                                </div>
+                            )}
+                            {isSignatureVehicle && isSelected && assignedVehicleName && (
+                                <div className="text-center mt-2">
+                                    <p className="text-xs text-gray-400">Assigned:</p>
+                                    <p className="text-sm font-bold text-cyan-300">{assignedVehicleName}</p>
+                                </div>
+                            )}
+                        </ChoiceCard>
+                    );
+                })}
             </div>
         </section>
 
@@ -425,43 +456,85 @@ export const PageOne: React.FC = () => {
                 })}
             </div>
         </section>
-        
-        {/* Magical Style Section */}
+
+        {/* Magical Styles Section */}
         <section className="my-16">
-            <SectionSubHeader>You can also choose your Magical Style! This is a purely visual upgrade applied to your spells... Note: this is not the same thing as having control over an element, it's purely visual.</SectionSubHeader>
-            <div className="grid grid-cols-4 sm:grid-cols-5 lg:grid-cols-10 gap-4">
+            <SectionHeader>Choose Your Magical Style</SectionHeader>
+            <SectionSubHeader>You can take up to two.</SectionSubHeader>
+            <div className="grid grid-cols-5 sm:grid-cols-5 md:grid-cols-10 gap-4">
                 {MAGICAL_STYLES_DATA.map(style => (
                     <ChoiceCard 
                         key={style.id} 
                         item={style} 
                         isSelected={selectedMagicalStyles.has(style.id)} 
                         onSelect={handleMagicalStyleSelect}
+                        disabled={!selectedMagicalStyles.has(style.id) && selectedMagicalStyles.size >= 2}
+                        layout="vertical"
                         aspect="square"
                     />
                 ))}
             </div>
         </section>
-
+        
         {/* Build Type Section */}
         <section className="my-16">
-            <SectionHeader>Select the kind of build you desire</SectionHeader>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
-                {BUILD_TYPES_DATA.map(build => (
-                    <ChoiceCard key={build.id} item={build} isSelected={selectedBuildTypeId === build.id} onSelect={handleBuildTypeSelect} />
+            <SectionHeader>Single or Multiplayer?</SectionHeader>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-3xl mx-auto">
+                {BUILD_TYPES_DATA.map(buildType => (
+                    <ChoiceCard 
+                        key={buildType.id} 
+                        item={buildType} 
+                        isSelected={selectedBuildTypeId === buildType.id} 
+                        onSelect={handleBuildTypeSelect} 
+                    />
                 ))}
             </div>
         </section>
-
         {isVehicleModalOpen && (
-            <VehicleSelectionModal
-                onClose={() => setIsVehicleModalOpen(false)}
-                onSelect={(vehicleName) => {
-                    handleAssignVehicle(vehicleName);
-                    setIsVehicleModalOpen(false);
+            <VehicleSelectionModal 
+                currentVehicleName={assignedVehicleName} 
+                onClose={() => setIsVehicleModalOpen(false)} 
+                onSelect={handleAssignVehicle} 
+            />
+        )}
+        {isBlessedModalOpen && selectedFamilyMemberId && (
+            <CompanionSelectionModal
+                currentCompanionName={blessedCompanions.get(selectedFamilyMemberId) || null}
+                onClose={() => setIsBlessedModalOpen(false)}
+                onSelect={(name) => {
+                    handleAssignBlessedCompanion(selectedFamilyMemberId, name);
+                    setIsBlessedModalOpen(false);
                 }}
-                currentVehicleName={assignedVehicleName}
+                pointLimit={35}
+                title={`Assign a Blessed Companion for ${selectedFamilyMemberId}`}
+                categoryFilter="mage"
+            />
+        )}
+        {isMythicalPetModalOpen && (
+             <BeastSelectionModal
+                currentBeastName={mythicalPetBeastName}
+                onClose={() => setIsMythicalPetModalOpen(false)}
+                onSelect={(name) => {
+                    handleAssignMythicalPet(name);
+                    setIsMythicalPetModalOpen(false);
+                }}
+                pointLimit={30}
+                title="Assign Mythical Pet"
+            />
+        )}
+        {isInhumanAppearanceModalOpen && (
+             <BeastSelectionModal
+                currentBeastName={inhumanAppearanceBeastName}
+                onClose={() => setIsInhumanAppearanceModalOpen(false)}
+                onSelect={(name) => {
+                    handleAssignInhumanAppearance(name);
+                    setIsInhumanAppearanceModalOpen(false);
+                }}
+                pointLimit={40}
+                title="Assign Inhuman Appearance"
+                excludedPerkIds={['chatterbox_beast', 'magical_beast']}
             />
         )}
         </>
-    )
-}
+    );
+};

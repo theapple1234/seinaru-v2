@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useCharacterContext } from '../../context/CharacterContext';
 import { FIDELIA_DATA, LOST_HOPE_DATA, LOST_HOPE_SIGIL_TREE_DATA, CHANNELLING_DATA, NECROMANCY_DATA, BLACK_MAGIC_DATA, BLESSING_ENGRAVINGS } from '../../constants';
-import type { LostHopePower, LostHopeSigil } from '../../types';
-import { BlessingIntro, SectionHeader, SectionSubHeader, WeaponIcon } from '../ui';
+import type { LostHopePower, LostHopeSigil, ChoiceItem } from '../../types';
+import { BlessingIntro, SectionHeader, SectionSubHeader, WeaponIcon, CompanionIcon } from '../ui';
 import { CompellingWillSigilCard, SigilColor } from '../CompellingWillSigilCard';
-import { ChoiceCard } from '../TraitCard';
 import { WeaponSelectionModal } from '../WeaponSelectionModal';
+import { CompanionSelectionModal } from '../SigilTreeOptionCard';
+import { BeastSelectionModal } from '../BeastSelectionModal';
 
 
 const sigilImageMap: {[key: string]: string} = { 'kaarn.png': 'kaarn', 'purth.png': 'purth', 'juathas.png': 'juathas', 'xuth.png': 'xuth', 'sinthru.png': 'sinthru', 'lekolu.png': 'lekolu' };
@@ -14,16 +15,84 @@ const getSigilTypeFromImage = (imageSrc: string): keyof typeof sigilImageMap | n
     return null;
 }
 
+const PowerCard: React.FC<{
+    power: ChoiceItem;
+    isSelected: boolean;
+    isDisabled: boolean;
+    onToggle: (id: string) => void;
+    children?: React.ReactNode;
+    iconButton?: React.ReactNode;
+    onIconButtonClick?: () => void;
+}> = ({ power, isSelected, isDisabled, onToggle, children, iconButton, onIconButtonClick }) => {
+    const wrapperClass = `bg-black/40 backdrop-blur-sm p-4 rounded-xl border flex flex-col text-center transition-all h-full ${
+        isSelected
+        ? 'border-purple-400 ring-2 ring-purple-400/50'
+        : isDisabled
+            ? 'opacity-50 cursor-not-allowed border-gray-800'
+            : 'border-white/10 hover:border-purple-400/70 cursor-pointer'
+    }`;
+
+    const handleIconClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        onIconButtonClick?.();
+    };
+    
+    return (
+        <div className={`${wrapperClass} relative`} onClick={() => !isDisabled && onToggle(power.id)}>
+            {iconButton && onIconButtonClick && isSelected && (
+                <button
+                    onClick={handleIconClick}
+                    className="absolute top-2 right-2 p-2 rounded-full bg-purple-900/50 text-purple-200/70 hover:bg-purple-800/60 hover:text-purple-100 transition-colors z-10"
+                    aria-label="Card action"
+                >
+                    {iconButton}
+                </button>
+            )}
+            <img src={power.imageSrc} alt={power.title} className="w-full h-40 rounded-md mb-4 object-cover" />
+            <h4 className="font-cinzel font-bold text-white tracking-wider text-xl">{power.title}</h4>
+            {power.cost && <p className="text-xs text-yellow-300/70 italic mt-1">{power.cost}</p>}
+            <div className="w-16 h-px bg-white/10 mx-auto my-2"></div>
+            <p className="text-xs text-gray-400 leading-relaxed flex-grow text-left whitespace-pre-wrap">{power.description}</p>
+            {children && (
+                 <div className="mt-4 pt-4 border-t border-gray-700/50">
+                    {children}
+                 </div>
+            )}
+        </div>
+    );
+};
+
 export const LostHopeSection: React.FC = () => {
     const ctx = useCharacterContext();
     const [isWeaponModalOpen, setIsWeaponModalOpen] = useState(false);
+    const [isCompanionModalOpen, setIsCompanionModalOpen] = useState(false);
+    const [isUndeadBeastModalOpen, setIsUndeadBeastModalOpen] = useState(false);
+
     const {
         selectedBlessingEngraving,
         lostHopeEngraving,
         handleLostHopeEngravingSelect,
         lostHopeWeaponName,
         handleLostHopeWeaponAssign,
+        selectedTrueSelfTraits,
+        isLostHopeMagicianApplied,
+        handleToggleLostHopeMagician,
+        disableLostHopeMagician,
+        lostHopeSigilTreeCost,
+        undeadThrallCompanionName,
+        handleUndeadThrallCompanionAssign,
+        undeadBeastName,
+        handleUndeadBeastAssign,
     } = useCharacterContext();
+
+    const finalEngraving = lostHopeEngraving ?? selectedBlessingEngraving;
+    const isSkinEngraved = finalEngraving === 'skin';
+    
+    useEffect(() => {
+        if (!isSkinEngraved && isLostHopeMagicianApplied) {
+            disableLostHopeMagician();
+        }
+    }, [isSkinEngraved, isLostHopeMagicianApplied, disableLostHopeMagician]);
 
     const isLostHopePowerDisabled = (power: LostHopePower, type: 'channelling' | 'necromancy' | 'black_magic'): boolean => {
         const selectedSet = type === 'channelling' ? ctx.selectedChannelling : type === 'necromancy' ? ctx.selectedNecromancy : ctx.selectedBlackMagic;
@@ -85,6 +154,13 @@ export const LostHopeSection: React.FC = () => {
     const isChannellingBoostDisabled = !ctx.isChannellingBoosted && ctx.availableSigilCounts.kaarn <= 0;
     const isNecromancyBoostDisabled = !ctx.isNecromancyBoosted && ctx.availableSigilCounts.purth <= 0;
     const isBlackMagicBoostDisabled = !ctx.blackMagicBoostSigil && (ctx.availableSigilCounts.sinthru < 1 && ctx.availableSigilCounts.xuth < 1);
+    
+    const isMagicianSelected = selectedTrueSelfTraits.has('magician');
+    const additionalCost = Math.floor(lostHopeSigilTreeCost * 0.25);
+    
+    const isBlackMagicBoosted = ctx.blackMagicBoostSigil !== null;
+    const undeadThrallPointLimit = isBlackMagicBoosted ? 60 : 50;
+    const undeadBeastPointLimit = ctx.isNecromancyBoosted ? 70 : 60;
 
     return (
         <section>
@@ -96,7 +172,6 @@ export const LostHopeSection: React.FC = () => {
                 </h4>
                 <div className="grid grid-cols-3 gap-4">
                     {BLESSING_ENGRAVINGS.map(engraving => {
-                        const finalEngraving = lostHopeEngraving ?? selectedBlessingEngraving;
                         const isSelected = finalEngraving === engraving.id;
                         const isOverridden = lostHopeEngraving !== null;
                         const isWeapon = engraving.id === 'weapon';
@@ -130,6 +205,22 @@ export const LostHopeSection: React.FC = () => {
                         );
                     })}
                 </div>
+                {isMagicianSelected && isSkinEngraved && (
+                    <div className="text-center mt-4">
+                        <button
+                            onClick={handleToggleLostHopeMagician}
+                            className={`px-6 py-3 text-sm rounded-lg border transition-colors ${
+                                isLostHopeMagicianApplied
+                                    ? 'bg-purple-800/60 border-purple-500 text-white'
+                                    : 'bg-gray-800/50 border-gray-700 text-gray-300 hover:border-purple-500/70'
+                            }`}
+                        >
+                            {isLostHopeMagicianApplied
+                                ? `The 'Magician' trait is applied. Click to remove. (+${additionalCost} BP)`
+                                : `Click to apply the 'Magician' trait from your True Self. This allows you to use the Blessing without transforming for an additional ${additionalCost} BP.`}
+                        </button>
+                    </div>
+                )}
             </div>
 
             {isWeaponModalOpen && (
@@ -182,7 +273,7 @@ export const LostHopeSection: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                     {CHANNELLING_DATA.map(power => {
                         const boostedText = ctx.isChannellingBoosted && boostDescriptions[power.id] ? `\n\nBOOSTED: ${boostDescriptions[power.id]}` : '';
-                        return <ChoiceCard key={power.id} item={{...power, cost: '', description: power.description + boostedText}} isSelected={ctx.selectedChannelling.has(power.id)} onSelect={ctx.handleChannellingSelect} disabled={isLostHopePowerDisabled(power, 'channelling')} selectionColor="amber" />
+                        return <PowerCard key={power.id} power={{...power, cost: '', description: power.description + boostedText}} isSelected={ctx.selectedChannelling.has(power.id)} onToggle={ctx.handleChannellingSelect} isDisabled={isLostHopePowerDisabled(power, 'channelling')} />
                     })}
                 </div>
             </div>
@@ -201,7 +292,25 @@ export const LostHopeSection: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                     {NECROMANCY_DATA.map(power => {
                         const boostedText = ctx.isNecromancyBoosted && boostDescriptions[power.id] ? `\n\nBOOSTED: ${boostDescriptions[power.id]}` : '';
-                        return <ChoiceCard key={power.id} item={{...power, cost: '', description: power.description + boostedText}} isSelected={ctx.selectedNecromancy.has(power.id)} onSelect={ctx.handleNecromancySelect} disabled={isLostHopePowerDisabled(power, 'necromancy')} selectionColor="amber" />
+                        const isUndeadBeast = power.id === 'undead_beast';
+                        const isSelected = ctx.selectedNecromancy.has(power.id);
+                        
+                        return <PowerCard 
+                            key={power.id} 
+                            power={{...power, cost: '', description: power.description + boostedText}} 
+                            isSelected={isSelected} 
+                            onToggle={ctx.handleNecromancySelect} 
+                            isDisabled={isLostHopePowerDisabled(power, 'necromancy')} 
+                            iconButton={isUndeadBeast && isSelected ? <CompanionIcon /> : undefined}
+                            onIconButtonClick={isUndeadBeast && isSelected ? () => setIsUndeadBeastModalOpen(true) : undefined}
+                        >
+                             {isUndeadBeast && undeadBeastName && isSelected && (
+                                <div className="text-center">
+                                    <p className="text-xs text-gray-400">Assigned Creature:</p>
+                                    <p className="text-sm font-bold text-amber-300">{undeadBeastName}</p>
+                                </div>
+                            )}
+                        </PowerCard>
                     })}
                 </div>
             </div>
@@ -220,10 +329,55 @@ export const LostHopeSection: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                     {BLACK_MAGIC_DATA.map(power => {
                         const boostedText = ctx.blackMagicBoostSigil && boostDescriptions[power.id] ? `\n\nBOOSTED: ${boostDescriptions[power.id]}` : '';
-                        return <ChoiceCard key={power.id} item={{...power, cost: '', description: power.description + boostedText}} isSelected={ctx.selectedBlackMagic.has(power.id)} onSelect={ctx.handleBlackMagicSelect} disabled={isLostHopePowerDisabled(power, 'black_magic')} selectionColor="amber" />
+                        const isUndeadThrall = power.id === 'undead_thrall';
+                        const isThrallSelected = ctx.selectedBlackMagic.has('undead_thrall');
+
+                        return (
+                            <PowerCard 
+                                key={power.id} 
+                                power={{...power, cost: '', description: power.description + boostedText}} 
+                                isSelected={ctx.selectedBlackMagic.has(power.id)} 
+                                onToggle={ctx.handleBlackMagicSelect} 
+                                isDisabled={isLostHopePowerDisabled(power, 'black_magic')} 
+                                iconButton={isUndeadThrall && isThrallSelected ? <CompanionIcon /> : undefined}
+                                onIconButtonClick={isUndeadThrall && isThrallSelected ? () => setIsCompanionModalOpen(true) : undefined}
+                            >
+                                {isUndeadThrall && undeadThrallCompanionName && isThrallSelected && (
+                                    <div className="text-center">
+                                        <p className="text-xs text-gray-400">Assigned Thrall:</p>
+                                        <p className="text-sm font-bold text-amber-300">{undeadThrallCompanionName}</p>
+                                    </div>
+                                )}
+                            </PowerCard>
+                        );
                     })}
                 </div>
             </div>
+            {isCompanionModalOpen && (
+                <CompanionSelectionModal
+                    onClose={() => setIsCompanionModalOpen(false)}
+                    onSelect={(companionName) => {
+                        handleUndeadThrallCompanionAssign(companionName);
+                        setIsCompanionModalOpen(false);
+                    }}
+                    currentCompanionName={undeadThrallCompanionName}
+                    pointLimit={undeadThrallPointLimit}
+                    title="Assign True Thrall"
+                    categoryFilter="undead"
+                />
+            )}
+            {isUndeadBeastModalOpen && (
+                <BeastSelectionModal
+                    onClose={() => setIsUndeadBeastModalOpen(false)}
+                    onSelect={(name) => {
+                        handleUndeadBeastAssign(name);
+                        setIsUndeadBeastModalOpen(false);
+                    }}
+                    currentBeastName={undeadBeastName}
+                    pointLimit={undeadBeastPointLimit}
+                    title="Assign Undead Beast"
+                />
+            )}
         </section>
     );
 };

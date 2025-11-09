@@ -4,6 +4,7 @@ import {
   TRUE_SELF_TRAITS, ALTER_EGO_TRAITS, MAGICAL_STYLES_DATA, 
   BUILD_TYPES_DATA, HEADMASTERS_DATA, TEACHERS_DATA,
   DURATION_DATA, CLUBS_DATA, MISC_ACTIVITIES_DATA, CLASSMATES_DATA,
+  CUSTOM_CLASSMATE_CHOICES_DATA,
   BLESSING_ENGRAVINGS, COMMON_SIGILS_DATA, SPECIAL_SIGILS_DATA,
   GOOD_TIDINGS_SIGIL_TREE_DATA,
   COMPELLING_WILL_SIGIL_TREE_DATA,
@@ -174,6 +175,7 @@ export const CharacterProvider: React.FC<{ children: ReactNode }> = ({ children 
         ...MAGICAL_STYLES_DATA, ...BUILD_TYPES_DATA,
         ...HEADMASTERS_DATA, ...TEACHERS_DATA, ...DURATION_DATA,
         ...CLUBS_DATA, ...MISC_ACTIVITIES_DATA, ...CLASSMATES_DATA,
+        ...CUSTOM_CLASSMATE_CHOICES_DATA,
         ...BLESSING_ENGRAVINGS, ...COMMON_SIGILS_DATA, 
         ...SPECIAL_SIGILS_DATA.map(s => ({...s, cost: s.id === 'lekolu' ? '' : s.cost})),
         ...lekoluSubOptions.map(sub => ({...sub, cost: SPECIAL_SIGILS_DATA.find(s => s.id === 'lekolu')?.cost || ''})),
@@ -245,6 +247,7 @@ export const CharacterProvider: React.FC<{ children: ReactNode }> = ({ children 
             totalFpCost += currentFpCost;
             totalBpCost += cost.bp;
         });
+        pageTwoState.customClassmates.forEach(c => accumulateCost(c.optionId));
         if (pageTwoState.isBoardingSchool && pageOneState.selectedHouseId === 'ragamuffin') {
             totalFpCost += 8;
         }
@@ -294,6 +297,16 @@ export const CharacterProvider: React.FC<{ children: ReactNode }> = ({ children 
         }
         totalBpCost -= bpRefund;
 
+        if (pageThreeState.selectedMetathermics.has('thermal_weaponry')) {
+            totalFpCost -= 5;
+        }
+        if (pageThreeState.selectedNaniteControls.has('heavily_armed')) {
+            totalFpCost -= 5;
+        }
+        if (pageThreeState.selectedMagitechPowers.has('weaponsmith')) {
+            totalFpCost -= 5;
+        }
+
 
         pageThreeState.acquiredCommonSigils.forEach((count, id) => {
             const cost = ALL_COSTS.get(id) ?? {fp: 0, bp: 0};
@@ -313,6 +326,27 @@ export const CharacterProvider: React.FC<{ children: ReactNode }> = ({ children 
                 totalBpCost += cost.bp * count;
             }
         });
+        
+        // Magician Trait cost modifications
+        const magicianBlessings = [
+            { isApplied: pageThreeState.isGoodTidingsMagicianApplied, cost: pageThreeState.goodTidingsSigilTreeCost },
+            { isApplied: pageThreeState.isCompellingWillMagicianApplied, cost: pageThreeState.compellingWillSigilTreeCost },
+            { isApplied: pageThreeState.isWorldlyWisdomMagicianApplied, cost: pageThreeState.worldlyWisdomSigilTreeCost },
+            { isApplied: pageThreeState.isBitterDissatisfactionMagicianApplied, cost: pageThreeState.bitterDissatisfactionSigilTreeCost },
+            { isApplied: pageThreeState.isLostHopeMagicianApplied, cost: pageThreeState.lostHopeSigilTreeCost },
+            { isApplied: pageThreeState.isFallenPeaceMagicianApplied, cost: pageThreeState.fallenPeaceSigilTreeCost },
+            { isApplied: pageThreeState.isGraciousDefeatMagicianApplied, cost: pageThreeState.graciousDefeatSigilTreeCost },
+            { isApplied: pageThreeState.isClosedCircuitsMagicianApplied, cost: pageThreeState.closedCircuitsSigilTreeCost },
+            { isApplied: pageThreeState.isRighteousCreationMagicianApplied, cost: pageThreeState.righteousCreationSigilTreeCost },
+        ];
+
+        if (pageOneState.selectedTrueSelfTraits.has('magician')) {
+            magicianBlessings.forEach(blessing => {
+                if (blessing.isApplied) {
+                    totalBpCost += Math.floor(blessing.cost * 0.25);
+                }
+            });
+        }
         
         // Page 4
         const ruhaiCount = pageFourState.acquiredRunes.get('ruhai') ?? 0;
@@ -334,7 +368,7 @@ export const CharacterProvider: React.FC<{ children: ReactNode }> = ({ children 
             totalFpCost += currentFpCost;
             totalBpCost += cost.bp;
         });
-        accumulateCost(pageFiveState.customColleagueChoice);
+        pageFiveState.customColleagues.forEach(c => accumulateCost(c.optionId));
         
         // Page 6
         accumulateCost(pageSixState.selectedRetirementChoiceId);

@@ -9,12 +9,17 @@ const getSigilTypeFromImage = (imageSrc: string): keyof SigilCounts | null => {
     return null;
 }
 
+const SIGIL_BP_COSTS: Record<string, number> = { kaarn: 3, purth: 5, juathas: 8, xuth: 12, lekolu: 4, sinthru: 10 };
+
 export const useWorldlyWisdomState = ({ availableSigilCounts }: { availableSigilCounts: SigilCounts }) => {
     const [selectedWorldlyWisdomSigils, setSelectedWorldlyWisdomSigils] = useState<Set<string>>(new Set());
     const [selectedEleanorsTechniques, setSelectedEleanorsTechniques] = useState<Set<string>>(new Set());
     const [selectedGenevievesTechniques, setSelectedGenevievesTechniques] = useState<Set<string>>(new Set());
     const [isEleanorsTechniquesBoosted, setIsEleanorsTechniquesBoosted] = useState(false);
     const [isGenevievesTechniquesBoosted, setIsGenevievesTechniquesBoosted] = useState(false);
+    const [isMagicianApplied, setIsMagicianApplied] = useState(false);
+    const handleToggleMagician = () => setIsMagicianApplied(prev => !prev);
+    const disableMagician = () => setIsMagicianApplied(false);
 
     const { availableEleanorsPicks, availableGenevievesPicks } = useMemo(() => {
         let eleanors = 0;
@@ -120,6 +125,18 @@ export const useWorldlyWisdomState = ({ availableSigilCounts }: { availableSigil
         if(isGenevievesTechniquesBoosted) used.purth +=1;
         return used;
     }, [selectedWorldlyWisdomSigils, isEleanorsTechniquesBoosted, isGenevievesTechniquesBoosted]);
+    
+    const sigilTreeCost = useMemo(() => {
+        let cost = 0;
+        selectedWorldlyWisdomSigils.forEach(id => {
+            const sigil = WORLDLY_WISDOM_SIGIL_TREE_DATA.find(s => s.id === id);
+            const type = sigil ? getSigilTypeFromImage(sigil.imageSrc) : null;
+            if (type && SIGIL_BP_COSTS[type]) {
+                cost += SIGIL_BP_COSTS[type];
+            }
+        });
+        return cost;
+    }, [selectedWorldlyWisdomSigils]);
 
     return {
         selectedWorldlyWisdomSigils, handleWorldlyWisdomSigilSelect,
@@ -129,6 +146,10 @@ export const useWorldlyWisdomState = ({ availableSigilCounts }: { availableSigil
         isGenevievesTechniquesBoosted,
         availableEleanorsPicks,
         availableGenevievesPicks,
+        isMagicianApplied,
+        handleToggleMagician,
+        disableMagician,
+        sigilTreeCost,
         usedSigilCounts,
     };
 };

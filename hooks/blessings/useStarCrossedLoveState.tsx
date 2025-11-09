@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import type { SigilCounts } from '../../types';
 import { STAR_CROSSED_LOVE_SIGIL_TREE_DATA } from '../../constants';
@@ -12,6 +12,17 @@ const getSigilTypeFromImage = (imageSrc: string): keyof SigilCounts | null => {
 export const useStarCrossedLoveState = ({ availableSigilCounts }: { availableSigilCounts: SigilCounts }) => {
     const [selectedStarCrossedLoveSigils, setSelectedStarCrossedLoveSigils] = useState<Set<string>>(new Set());
     const [selectedStarCrossedLovePacts, setSelectedStarCrossedLovePacts] = useState<Set<string>>(new Set());
+    const [onisBlessingGuardianName, setOnisBlessingGuardianName] = useState<string | null>(null);
+
+    const handleOnisBlessingGuardianAssign = (name: string | null) => {
+        setOnisBlessingGuardianName(name);
+    };
+
+    useEffect(() => {
+        if (!selectedStarCrossedLovePacts.has('onis_blessing')) {
+            setOnisBlessingGuardianName(null);
+        }
+    }, [selectedStarCrossedLovePacts]);
 
     const { availablePactPicks } = useMemo(() => {
         let pacts = 0;
@@ -69,6 +80,8 @@ export const useStarCrossedLoveState = ({ availableSigilCounts }: { availableSig
         selectedStarCrossedLoveSigils, handleStarCrossedLoveSigilSelect,
         selectedStarCrossedLovePacts, handleStarCrossedLovePactSelect,
         availablePactPicks,
+        onisBlessingGuardianName,
+        handleOnisBlessingGuardianAssign,
         usedSigilCounts,
     };
 };

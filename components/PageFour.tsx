@@ -44,11 +44,12 @@ const RuneCounter: React.FC<RuneCounterProps> = ({ ruhaiCount, availableMialgrat
 
 interface RuneCardProps {
   rune: ChoiceItem;
+  count: number;
   onAction: (action: 'buy' | 'sell') => void;
   onAnimate: (rect: DOMRect) => void;
 }
 
-const RuneCard: React.FC<RuneCardProps> = ({ rune, onAction, onAnimate }) => {
+const RuneCard: React.FC<RuneCardProps> = ({ rune, count, onAction, onAnimate }) => {
   const { cost, description, imageSrc, title } = rune;
   const imgRef = useRef<HTMLImageElement>(null);
 
@@ -62,9 +63,10 @@ const RuneCard: React.FC<RuneCardProps> = ({ rune, onAction, onAnimate }) => {
 
   return (
     <div 
-      className={`group flex flex-col items-center text-center p-6 transition-all duration-300 ease-in-out bg-black/30 rounded-lg h-full border border-gray-800 hover:border-amber-400/50 cursor-default`}
+      className={`group flex flex-col items-center text-center p-6 transition-all duration-300 ease-in-out bg-black/30 rounded-lg h-full border border-gray-800 hover:border-amber-400/50 ${count > 0 ? 'cursor-pointer' : 'cursor-default'}`}
+      onClick={() => { if (count > 0) onAction('sell'); }}
       role="button"
-      aria-label={`Rune card for ${title}`}
+      aria-label={`Sell one ${title}. Current count: ${count}`}
     >
       <div 
         className="relative cursor-pointer"
@@ -79,9 +81,8 @@ const RuneCard: React.FC<RuneCardProps> = ({ rune, onAction, onAnimate }) => {
         <p className="text-gray-400 text-sm leading-relaxed whitespace-pre-wrap">{description}</p>
         <p className="text-purple-300/80 text-xs italic mt-4">{cost}</p>
       </div>
-       <div className="mt-4 w-full flex justify-around">
-         <button onClick={handleBuy} className="px-4 py-1 rounded bg-gray-700/50 border border-gray-600 hover:bg-gray-600/50 transition-colors">Buy</button>
-         <button onClick={() => onAction('sell')} className="px-4 py-1 rounded bg-gray-700/50 border border-gray-600 hover:bg-gray-600/50 transition-colors">Sell</button>
+       <div className="mt-4 w-full">
+         <p className="text-xs text-gray-500 italic">Click image to buy, card to sell.</p>
       </div>
     </div>
   );
@@ -229,11 +230,13 @@ export const PageFour: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
                     <RuneCard 
                         rune={LIMITLESS_POTENTIAL_RUNES_DATA[0]} 
+                        count={ruhaiCount}
                         onAction={(action) => handleRuneAction('ruhai', action)}
                         onAnimate={(rect) => handleRuneAnimation(rect, LIMITLESS_POTENTIAL_RUNES_DATA[0].imageSrc)}
                     />
                     <RuneCard 
-                        rune={LIMITLESS_POTENTIAL_RUNES_DATA[1]} 
+                        rune={LIMITLESS_POTENTIAL_RUNES_DATA[1]}
+                        count={mialgrathRunesPurchased}
                         onAction={(action) => handleRuneAction('mialgrath', action)}
                         onAnimate={(rect) => handleRuneAnimation(rect, LIMITLESS_POTENTIAL_RUNES_DATA[1].imageSrc)}
                     />

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import type { SigilCounts } from '../../types';
 import { CLOSED_CIRCUITS_SIGIL_TREE_DATA, NET_AVATAR_DATA, TECHNOMANCY_DATA, NANITE_CONTROL_DATA } from '../../constants';
@@ -9,6 +9,8 @@ const getSigilTypeFromImage = (imageSrc: string): keyof SigilCounts | null => {
     return null;
 }
 
+const SIGIL_BP_COSTS: Record<string, number> = { kaarn: 3, purth: 5, juathas: 8, xuth: 12, lekolu: 4, sinthru: 10 };
+
 export const useClosedCircuitsState = ({ availableSigilCounts }: { availableSigilCounts: SigilCounts }) => {
     const [selectedClosedCircuitsSigils, setSelectedClosedCircuitsSigils] = useState<Set<string>>(new Set());
     const [selectedNetAvatars, setSelectedNetAvatars] = useState<Set<string>>(new Set());
@@ -16,6 +18,32 @@ export const useClosedCircuitsState = ({ availableSigilCounts }: { availableSigi
     const [selectedNaniteControls, setSelectedNaniteControls] = useState<Set<string>>(new Set());
     const [isTechnomancyBoosted, setIsTechnomancyBoosted] = useState(false);
     const [isNaniteControlBoosted, setIsNaniteControlBoosted] = useState(false);
+    const [isMagicianApplied, setIsMagicianApplied] = useState(false);
+    const [naniteFormBeastName, setNaniteFormBeastName] = useState<string | null>(null);
+    const [heavilyArmedWeaponName, setHeavilyArmedWeaponName] = useState<string | null>(null);
+
+    const handleHeavilyArmedWeaponAssign = (name: string | null) => {
+        setHeavilyArmedWeaponName(name);
+    };
+
+    useEffect(() => {
+        if (!selectedNaniteControls.has('heavily_armed')) {
+            setHeavilyArmedWeaponName(null);
+        }
+    }, [selectedNaniteControls]);
+
+    const handleNaniteFormBeastAssign = (name: string | null) => {
+        setNaniteFormBeastName(name);
+    };
+
+    useEffect(() => {
+        if (!selectedNaniteControls.has('nanite_form')) {
+            setNaniteFormBeastName(null);
+        }
+    }, [selectedNaniteControls]);
+
+    const handleToggleMagician = () => setIsMagicianApplied(prev => !prev);
+    const disableMagician = () => setIsMagicianApplied(false);
     
     const { availableNetAvatarPicks, availableTechnomancyPicks, availableNaniteControlPicks } = useMemo(() => {
         let netAvatar = 0, technomancy = 0, naniteControl = 0;
@@ -117,6 +145,18 @@ export const useClosedCircuitsState = ({ availableSigilCounts }: { availableSigi
         return used;
     }, [selectedClosedCircuitsSigils, isTechnomancyBoosted, isNaniteControlBoosted]);
     
+    const sigilTreeCost = useMemo(() => {
+        let cost = 0;
+        selectedClosedCircuitsSigils.forEach(id => {
+            const sigil = CLOSED_CIRCUITS_SIGIL_TREE_DATA.find(s => s.id === id);
+            const type = sigil ? getSigilTypeFromImage(sigil.imageSrc) : null;
+            if (type && SIGIL_BP_COSTS[type]) {
+                cost += SIGIL_BP_COSTS[type];
+            }
+        });
+        return cost;
+    }, [selectedClosedCircuitsSigils]);
+    
     return {
         selectedClosedCircuitsSigils, handleClosedCircuitsSigilSelect,
         selectedNetAvatars, handleNetAvatarSelect,
@@ -124,6 +164,14 @@ export const useClosedCircuitsState = ({ availableSigilCounts }: { availableSigi
         selectedNaniteControls, handleNaniteControlSelect,
         isTechnomancyBoosted, isNaniteControlBoosted, handleClosedCircuitsBoostToggle,
         availableNetAvatarPicks, availableTechnomancyPicks, availableNaniteControlPicks,
+        isMagicianApplied,
+        handleToggleMagician,
+        disableMagician,
+        sigilTreeCost,
+        naniteFormBeastName,
+        handleNaniteFormBeastAssign,
+        heavilyArmedWeaponName,
+        handleHeavilyArmedWeaponAssign,
         usedSigilCounts,
     };
 };

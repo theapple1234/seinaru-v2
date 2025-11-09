@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { TRAITS_DATA } from '../constants';
 
 // This hook encapsulates state and logic for Page One of the character creation.
@@ -22,9 +22,56 @@ export const usePageOneState = () => {
     const [vrChamberCostType, setVrChamberCostType] = useState<'fp' | 'bp' | null>(null);
     const [assignedVehicleName, setAssignedVehicleName] = useState<string | null>(null);
 
+    // New state for assignments
+    const [blessedCompanions, setBlessedCompanions] = useState<Map<string, string | null>>(new Map());
+    const [mythicalPetBeastName, setMythicalPetBeastName] = useState<string | null>(null);
+    const [inhumanAppearanceBeastName, setInhumanAppearanceBeastName] = useState<string | null>(null);
 
-    const handleNumParentsChange = (newCount: number) => { if (newCount >= 0 && newCount <= 6) setNumParents(newCount); };
-    const handleNumSiblingsChange = (newCount: number) => { if (newCount >= 0 && newCount <= 8) setNumSiblings(newCount); };
+    const handleAssignBlessedCompanion = (memberId: string, companionName: string | null) => {
+        setBlessedCompanions(prev => new Map(prev).set(memberId, companionName));
+    };
+    const handleAssignMythicalPet = (beastName: string | null) => setMythicalPetBeastName(beastName);
+    const handleAssignInhumanAppearance = (beastName: string | null) => setInhumanAppearanceBeastName(beastName);
+
+
+    const handleNumParentsChange = (newCount: number) => { 
+        if (newCount >= 0 && newCount <= 6) {
+            if (newCount < numParents) {
+                const newAssignedTraits = new Map(assignedTraits);
+                const newBlessedCompanions = new Map(blessedCompanions);
+                for (let i = newCount; i < numParents; i++) {
+                    newAssignedTraits.delete(`parent-${i}`);
+                    newBlessedCompanions.delete(`parent-${i}`);
+                }
+                setAssignedTraits(newAssignedTraits);
+                setBlessedCompanions(newBlessedCompanions);
+
+                if (selectedFamilyMemberId && selectedFamilyMemberId.startsWith('parent-') && parseInt(selectedFamilyMemberId.split('-')[1]) >= newCount) {
+                    setSelectedFamilyMemberId(null);
+                }
+            }
+            setNumParents(newCount); 
+        }
+    };
+    const handleNumSiblingsChange = (newCount: number) => { 
+        if (newCount >= 0 && newCount <= 8) {
+             if (newCount < numSiblings) {
+                const newAssignedTraits = new Map(assignedTraits);
+                const newBlessedCompanions = new Map(blessedCompanions);
+                for (let i = newCount; i < numSiblings; i++) {
+                    newAssignedTraits.delete(`sibling-${i}`);
+                    newBlessedCompanions.delete(`sibling-${i}`);
+                }
+                setAssignedTraits(newAssignedTraits);
+                setBlessedCompanions(newBlessedCompanions);
+
+                if (selectedFamilyMemberId && selectedFamilyMemberId.startsWith('sibling-') && parseInt(selectedFamilyMemberId.split('-')[1]) >= newCount) {
+                    setSelectedFamilyMemberId(null);
+                }
+            }
+            setNumSiblings(newCount); 
+        }
+    };
     const handleSelectFamilyMember = (id: string | null) => setSelectedFamilyMemberId(id);
 
     const handleVacationHomeChange = (newCount: number) => { if (newCount >= 0) setVacationHomeCount(newCount); };
@@ -51,6 +98,13 @@ export const usePageOneState = () => {
     
             if (memberTraits.has(traitId)) {
                 memberTraits.delete(traitId);
+                 if (traitId === 'blessed') {
+                    setBlessedCompanions(prevBlessed => {
+                        const newBlessedMap = new Map(prevBlessed);
+                        newBlessedMap.delete(selectedFamilyMemberId);
+                        return newBlessedMap;
+                    });
+                }
             } else {
                 // Incompatibility check
                 if (traitId === 'strict' && memberTraits.has('forgiving')) return prev;
@@ -93,14 +147,16 @@ export const usePageOneState = () => {
     };
 
     const handleUpgradeSelect = (id: string) => {
-        if (selectedUpgrades.has(id)) {
-            if (id === 'virtual_reality') setVrChamberCostType(null);
-            if (id === 'private_island') setIslandExtraMiles(0);
-        }
         setSelectedUpgrades(prevSet => {
             const newSet = new Set(prevSet);
-            if (newSet.has(id)) newSet.delete(id);
-            else newSet.add(id);
+            if (newSet.has(id)) {
+                newSet.delete(id);
+                if (id === 'virtual_reality') setVrChamberCostType(null);
+                if (id === 'private_island') setIslandExtraMiles(0);
+                if (id === 'mythical_pet') setMythicalPetBeastName(null);
+            } else {
+                newSet.add(id);
+            }
             return newSet;
         });
     };
@@ -115,7 +171,17 @@ export const usePageOneState = () => {
                 if (id === 'signature_vehicle') {
                     setAssignedVehicleName(null);
                 }
+                if (id === 'inhuman_appearance') {
+                    setInhumanAppearanceBeastName(null);
+                }
+                if (id === 'exotic_appearance') {
+                    newSet.delete('inhuman_appearance');
+                    setInhumanAppearanceBeastName(null);
+                }
             } else {
+                if (id === 'inhuman_appearance' && !newSet.has('exotic_appearance')) {
+                    return prevSet;
+                }
                 newSet.add(id);
             }
             return newSet;
@@ -166,5 +232,8 @@ export const usePageOneState = () => {
         islandExtraMiles, handleIslandMilesChange,
         vrChamberCostType, handleVrChamberCostSelect,
         assignedVehicleName, handleAssignVehicle,
+        blessedCompanions, handleAssignBlessedCompanion,
+        mythicalPetBeastName, handleAssignMythicalPet,
+        inhumanAppearanceBeastName, handleAssignInhumanAppearance,
     };
 };

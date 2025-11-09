@@ -1,79 +1,99 @@
 import React, { useState, useEffect } from 'react';
-import { COMPANION_CATEGORIES, COMPANION_RELATIONSHIPS, COMPANION_PERSONALITY_TRAITS, COMPANION_PERKS, COMPANION_POWER_LEVELS } from '../constants';
-import type { AllBuilds, CompanionSelections } from '../types';
+import { BEAST_CATEGORIES, BEAST_SIZES, BEAST_PERKS, COMPANION_PERSONALITY_TRAITS } from '../constants';
+import type { AllBuilds, BeastSelections } from '../types';
 
 const STORAGE_KEY = 'seinaru_magecraft_builds';
 
-const calculateCompanionPoints = (selections: CompanionSelections): number => {
+const calculateBeastPoints = (selections: BeastSelections): number => {
     let total = 0;
-    const allItems = [...COMPANION_CATEGORIES, ...COMPANION_RELATIONSHIPS, ...COMPANION_PERSONALITY_TRAITS, ...COMPANION_PERKS, ...COMPANION_POWER_LEVELS];
-    
-    if (selections.category) total += allItems.find(i => i.id === selections.category)?.cost ?? 0;
-    if (selections.relationship) total += allItems.find(i => i.id === selections.relationship)?.cost ?? 0;
-    if (selections.powerLevel) total += allItems.find(i => i.id === selections.powerLevel)?.cost ?? 0;
-    if (selections.traits) selections.traits.forEach(traitId => { total += allItems.find(i => i.id === traitId)?.cost ?? 0; });
-    if (selections.perks) selections.perks.forEach(perkId => { total += allItems.find(i => i.id === perkId)?.cost ?? 0; });
-    
+    if (selections.category) {
+        total += BEAST_CATEGORIES.find(c => c.id === selections.category)?.cost ?? 0;
+    }
+    if (selections.size) {
+        total += BEAST_SIZES.find(s => s.id === selections.size)?.cost ?? 0;
+    }
+    selections.perks.forEach(perkId => {
+        const perk = BEAST_PERKS.find(p => p.id === perkId);
+        if (perk) {
+            let cost = perk.cost ?? 0;
+            // Handle free perks based on other selections
+            if (perk.id === 'unnerving_appearance' && selections.perks.has('undead_perk')) cost = 0;
+            if (perk.id === 'steel_skin' && selections.perks.has('automaton_perk')) cost = 0;
+            total += cost;
+        }
+    });
+    if (selections.perks.has('chatterbox_beast')) {
+        selections.traits.forEach(traitId => {
+            const trait = COMPANION_PERSONALITY_TRAITS.find(t => t.id === traitId);
+            if (trait) total += trait.cost ?? 0;
+        });
+    }
     return total;
 };
 
-const hydrateCompanionData = (data: any): CompanionSelections => {
+const hydrateBeastData = (data: any): BeastSelections => {
     if (data) {
         return {
             ...data,
-            traits: new Set(data.traits || []),
             perks: new Set(data.perks || []),
+            traits: new Set(data.traits || []),
         };
     }
     return data;
 };
 
-interface CompanionSelectionModalProps {
-    currentCompanionName: string | null;
+interface BeastSelectionModalProps {
+    currentBeastName: string | null;
     onClose: () => void;
-    onSelect: (companionName: string | null) => void;
-    pointLimit: number;
+    onSelect: (beastName: string | null) => void;
+    pointLimit: number | typeof Infinity;
     title: string;
     categoryFilter?: string;
+    excludedPerkIds?: string[];
 }
 
-export const CompanionSelectionModal: React.FC<CompanionSelectionModalProps> = ({
-    currentCompanionName,
+export const BeastSelectionModal: React.FC<BeastSelectionModalProps> = ({
+    currentBeastName,
     onClose,
     onSelect,
     pointLimit,
     title,
     categoryFilter,
+    excludedPerkIds,
 }) => {
-    const [companionBuilds, setCompanionBuilds] = useState<Record<string, { points: number }>>({});
+    const [beastBuilds, setBeastBuilds] = useState<Record<string, { points: number }>>({});
 
     useEffect(() => {
         const savedBuildsJSON = localStorage.getItem(STORAGE_KEY);
         if (savedBuildsJSON) {
             try {
                 const parsedBuilds: AllBuilds = JSON.parse(savedBuildsJSON);
-                const companions = parsedBuilds.companions || {};
+                const beasts = parsedBuilds.beasts || {};
                 const buildsWithPoints: Record<string, { points: number }> = {};
                 
-                for (const name in companions) {
-                    const build = companions[name];
+                for (const name in beasts) {
+                    const build = beasts[name];
                     if (build.version === 1) {
-                        const hydratedData = hydrateCompanionData(build.data);
+                        const hydratedData = hydrateBeastData(build.data);
                         
                         if (categoryFilter && hydratedData.category !== categoryFilter) {
                             continue;
                         }
 
-                        const points = calculateCompanionPoints(hydratedData);
+                        if (excludedPerkIds && excludedPerkIds.some(perkId => hydratedData.perks.has(perkId))) {
+                            continue;
+                        }
+
+                        const points = calculateBeastPoints(hydratedData);
                         buildsWithPoints[name] = { points };
                     }
                 }
-                setCompanionBuilds(buildsWithPoints);
+                setBeastBuilds(buildsWithPoints);
             } catch (error) {
-                console.error("Failed to parse companion builds from storage:", error);
+                console.error("Failed to parse beast builds from storage:", error);
             }
         }
-    }, [categoryFilter]);
+    }, [categoryFilter, excludedPerkIds]);
 
     useEffect(() => {
         const handleKeyDown = (event: KeyboardEvent) => {
@@ -94,14 +114,14 @@ export const CompanionSelectionModal: React.FC<CompanionSelectionModalProps> = (
             onClick={onClose}
             role="dialog"
             aria-modal="true"
-            aria-labelledby="companion-modal-title"
+            aria-labelledby="beast-modal-title"
         >
             <div
                 className="bg-[#100c14] border-2 border-purple-700/80 rounded-xl shadow-lg w-full max-w-2xl max-h-[80vh] flex flex-col"
                 onClick={(e) => e.stopPropagation()}
             >
                 <header className="flex items-center justify-between p-4 border-b border-purple-900/50">
-                    <h2 id="companion-modal-title" className="font-cinzel text-2xl text-purple-200">
+                    <h2 id="beast-modal-title" className="font-cinzel text-2xl text-purple-200">
                         {title}
                     </h2>
                     <button
@@ -114,15 +134,17 @@ export const CompanionSelectionModal: React.FC<CompanionSelectionModalProps> = (
                 </header>
                 <main className="p-6 overflow-y-auto">
                     <p className="text-center text-sm text-purple-300/80 mb-4 italic">
-                        Select a companion build that costs {pointLimit} Companion Points or less.
+                        {pointLimit === Infinity
+                            ? "Select any beast build."
+                            : `Select a beast build that costs ${pointLimit} Beast Points or less.`}
                         {categoryFilter && ` Must have category: ${categoryFilter.toUpperCase()}.`}
                     </p>
                     <div className="space-y-3">
-                        {Object.keys(companionBuilds).length > 0 ? (
-                            Object.keys(companionBuilds).map((name) => {
-                                const { points } = companionBuilds[name];
-                                const isSelected = name === currentCompanionName;
-                                const isDisabled = points > pointLimit;
+                        {Object.keys(beastBuilds).length > 0 ? (
+                            Object.keys(beastBuilds).map((name) => {
+                                const { points } = beastBuilds[name];
+                                const isSelected = name === currentBeastName;
+                                const isDisabled = pointLimit !== Infinity && points > pointLimit;
                                 const costColor = isDisabled ? 'text-red-500' : 'text-green-400';
                                 
                                 return (
@@ -143,18 +165,20 @@ export const CompanionSelectionModal: React.FC<CompanionSelectionModalProps> = (
                                         <div>
                                             <h3 className="font-semibold text-white">{name}</h3>
                                             <p className="text-xs text-gray-400">
-                                                {isDisabled ? `Cost exceeds ${pointLimit} points` : 'Click to assign this companion'}
+                                                {isDisabled ? `Cost exceeds ${pointLimit} points` : 'Click to assign this beast'}
                                             </p>
                                         </div>
                                         <span className={`font-bold text-lg ${costColor}`}>
-                                            {points} CP
+                                            {points} BP
                                         </span>
                                     </div>
                                 );
                             })
                         ) : (
                             <p className="text-center text-gray-500 italic py-8">
-                                No compatible companion builds found. Go to the Reference Page to create one with the '{categoryFilter?.toUpperCase()}' category!
+                                No compatible beast builds found. Go to the Reference Page to create one.
+                                {categoryFilter && ` Make sure it has the '${categoryFilter.toUpperCase()}' category.`}
+                                {excludedPerkIds && excludedPerkIds.length > 0 && " Ensure it does not use restricted perks (*)."}
                             </p>
                         )}
                     </div>

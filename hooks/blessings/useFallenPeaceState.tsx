@@ -9,12 +9,17 @@ const getSigilTypeFromImage = (imageSrc: string): keyof SigilCounts | null => {
     return null;
 }
 
+const SIGIL_BP_COSTS: Record<string, number> = { kaarn: 3, purth: 5, juathas: 8, xuth: 12, lekolu: 4, sinthru: 10 };
+
 export const useFallenPeaceState = ({ availableSigilCounts }: { availableSigilCounts: SigilCounts }) => {
     const [selectedFallenPeaceSigils, setSelectedFallenPeaceSigils] = useState<Set<string>>(new Set());
     const [selectedTelepathy, setSelectedTelepathy] = useState<Set<string>>(new Set());
     const [selectedMentalManipulation, setSelectedMentalManipulation] = useState<Set<string>>(new Set());
     const [isTelepathyBoosted, setIsTelepathyBoosted] = useState(false);
     const [isMentalManipulationBoosted, setIsMentalManipulationBoosted] = useState(false);
+    const [isMagicianApplied, setIsMagicianApplied] = useState(false);
+    const handleToggleMagician = () => setIsMagicianApplied(prev => !prev);
+    const disableMagician = () => setIsMagicianApplied(false);
 
     const { availableTelepathyPicks, availableMentalManipulationPicks } = useMemo(() => {
         let telepathy = 0, mentalManipulation = 0;
@@ -108,12 +113,28 @@ export const useFallenPeaceState = ({ availableSigilCounts }: { availableSigilCo
         return used;
     }, [selectedFallenPeaceSigils, isTelepathyBoosted, isMentalManipulationBoosted]);
     
+    const sigilTreeCost = useMemo(() => {
+        let cost = 0;
+        selectedFallenPeaceSigils.forEach(id => {
+            const sigil = FALLEN_PEACE_SIGIL_TREE_DATA.find(s => s.id === id);
+            const type = sigil ? getSigilTypeFromImage(sigil.imageSrc) : null;
+            if (type && SIGIL_BP_COSTS[type]) {
+                cost += SIGIL_BP_COSTS[type];
+            }
+        });
+        return cost;
+    }, [selectedFallenPeaceSigils]);
+    
     return {
         selectedFallenPeaceSigils, handleFallenPeaceSigilSelect,
         selectedTelepathy, handleTelepathySelect,
         selectedMentalManipulation, handleMentalManipulationSelect,
         isTelepathyBoosted, isMentalManipulationBoosted, handleFallenPeaceBoostToggle,
         availableTelepathyPicks, availableMentalManipulationPicks,
+        isMagicianApplied,
+        handleToggleMagician,
+        disableMagician,
+        sigilTreeCost,
         usedSigilCounts,
     };
 };

@@ -10,6 +10,9 @@ export const useGoodTidingsState = ({ availableSigilCounts }: { availableSigilCo
     const [selectedMajorBoons, setSelectedMajorBoons] = useState<Set<string>>(new Set());
     const [isMinorBoonsBoosted, setIsMinorBoonsBoosted] = useState(false);
     const [isMajorBoonsBoosted, setIsMajorBoonsBoosted] = useState(false);
+    const [isMagicianApplied, setIsMagicianApplied] = useState(false);
+    const handleToggleMagician = () => setIsMagicianApplied(prev => !prev);
+    const disableMagician = () => setIsMagicianApplied(false);
 
     const { availableEssentialBoonPicks, availableMinorBoonPicks, availableMajorBoonPicks } = useMemo(() => {
         let essential = 0, minor = 0, major = 0;
@@ -93,6 +96,18 @@ export const useGoodTidingsState = ({ availableSigilCounts }: { availableSigilCo
 
         return used;
     }, [selectedGoodTidingsTier, isMinorBoonsBoosted, isMajorBoonsBoosted]);
+    
+    const sigilTreeCost = useMemo(() => {
+        let cost = 0;
+        const tierOrder: ('standard' | 'journeyman' | 'master')[] = ['standard', 'journeyman', 'master'];
+        const tierIndex = selectedGoodTidingsTier ? tierOrder.indexOf(selectedGoodTidingsTier) : -1;
+
+        if (tierIndex >= 0) cost += 3; // kaarn
+        if (tierIndex >= 1) cost += 5; // purth
+        if (tierIndex >= 2) cost += 12; // xuth
+        
+        return cost;
+    }, [selectedGoodTidingsTier]);
 
     return {
         selectedGoodTidingsTier, handleGoodTidingsTierSelect,
@@ -100,6 +115,10 @@ export const useGoodTidingsState = ({ availableSigilCounts }: { availableSigilCo
         selectedMinorBoons, handleMinorBoonSelect, availableMinorBoonPicks,
         selectedMajorBoons, handleMajorBoonSelect, availableMajorBoonPicks,
         isMinorBoonsBoosted, isMajorBoonsBoosted, handleGoodTidingsBoostToggle,
+        isMagicianApplied,
+        handleToggleMagician,
+        disableMagician,
+        sigilTreeCost,
         usedSigilCounts,
     };
 };

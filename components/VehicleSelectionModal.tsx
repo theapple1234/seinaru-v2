@@ -32,12 +32,16 @@ interface VehicleSelectionModalProps {
     currentVehicleName: string | null;
     onClose: () => void;
     onSelect: (vehicleName: string | null) => void;
+    pointLimit?: number;
+    title?: string;
 }
 
 export const VehicleSelectionModal: React.FC<VehicleSelectionModalProps> = ({
     currentVehicleName,
     onClose,
     onSelect,
+    pointLimit = 30,
+    title = 'Assign Signature Vehicle',
 }) => {
     const [vehicleBuilds, setVehicleBuilds] = useState<Record<string, { points: number }>>({});
 
@@ -79,7 +83,7 @@ export const VehicleSelectionModal: React.FC<VehicleSelectionModalProps> = ({
 
     return (
         <div
-            className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[101] flex items-center justify-center p-4"
             onClick={onClose}
             role="dialog"
             aria-modal="true"
@@ -91,7 +95,7 @@ export const VehicleSelectionModal: React.FC<VehicleSelectionModalProps> = ({
             >
                 <header className="flex items-center justify-between p-4 border-b border-cyan-900/50">
                     <h2 id="vehicle-modal-title" className="font-cinzel text-2xl text-cyan-200">
-                        Assign Signature Vehicle
+                        {title}
                     </h2>
                     <button
                         onClick={onClose}
@@ -102,13 +106,15 @@ export const VehicleSelectionModal: React.FC<VehicleSelectionModalProps> = ({
                     </button>
                 </header>
                 <main className="p-6 overflow-y-auto">
+                     <p className="text-center text-sm text-cyan-300/80 mb-4 italic">
+                        Select a vehicle build that costs {pointLimit} Vehicle Points or less.
+                    </p>
                     <div className="space-y-3">
                         {Object.keys(vehicleBuilds).length > 0 ? (
-                            // FIX: Replaced Object.entries with Object.keys to fix a TypeScript inference issue where the build's value was incorrectly typed as '{}'.
                             Object.keys(vehicleBuilds).map((name) => {
                                 const { points } = vehicleBuilds[name];
                                 const isSelected = name === currentVehicleName;
-                                const isDisabled = points > 30;
+                                const isDisabled = points > pointLimit;
                                 const costColor = isDisabled ? 'text-red-500' : 'text-green-400';
                                 
                                 return (
@@ -129,7 +135,7 @@ export const VehicleSelectionModal: React.FC<VehicleSelectionModalProps> = ({
                                         <div>
                                             <h3 className="font-semibold text-white">{name}</h3>
                                             <p className="text-xs text-gray-400">
-                                                {isDisabled ? 'Cost exceeds 30 points' : 'Click to assign this vehicle'}
+                                                {isDisabled ? `Cost exceeds ${pointLimit} points` : 'Click to assign this vehicle'}
                                             </p>
                                         </div>
                                         <span className={`font-bold text-lg ${costColor}`}>

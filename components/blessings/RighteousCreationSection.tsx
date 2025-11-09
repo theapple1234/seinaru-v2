@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { useCharacterContext } from '../../context/CharacterContext';
 import { RIGHTEOUS_CREATION_DATA, RIGHTEOUS_CREATION_SIGIL_TREE_DATA, RIGHTEOUS_CREATION_SPECIALTIES_DATA, RIGHTEOUS_CREATION_MAGITECH_DATA, RIGHTEOUS_CREATION_ARCANE_CONSTRUCTS_DATA, RIGHTEOUS_CREATION_METAMAGIC_DATA, BLESSING_ENGRAVINGS } from '../../constants';
-import type { RighteousCreationPower, RighteousCreationSigil } from '../../types';
-import { BlessingIntro, SectionHeader, SectionSubHeader, WeaponIcon } from '../ui';
+import type { RighteousCreationPower, RighteousCreationSigil, ChoiceItem } from '../../types';
+import { BlessingIntro, SectionHeader, SectionSubHeader, WeaponIcon, CompanionIcon, VehicleIcon } from '../ui';
 import { CompellingWillSigilCard, SigilColor } from '../CompellingWillSigilCard';
-import { ChoiceCard } from '../TraitCard';
 import { WeaponSelectionModal } from '../WeaponSelectionModal';
-
+import { CompanionSelectionModal } from '../SigilTreeOptionCard';
+import { VehicleSelectionModal } from '../VehicleSelectionModal';
+import { BeastSelectionModal } from '../BeastSelectionModal';
 
 const sigilImageMap: {[key: string]: string} = { 'kaarn.png': 'kaarn', 'purth.png': 'purth', 'juathas.png': 'juathas', 'xuth.png': 'xuth', 'sinthru.png': 'sinthru', 'lekolu.png': 'lekolu' };
 const getSigilTypeFromImage = (imageSrc: string): keyof typeof sigilImageMap | null => {
@@ -14,15 +15,72 @@ const getSigilTypeFromImage = (imageSrc: string): keyof typeof sigilImageMap | n
     return null;
 }
 
+const PowerCard: React.FC<{
+    power: ChoiceItem;
+    isSelected: boolean;
+    isDisabled: boolean;
+    onToggle: (id: string) => void;
+    children?: React.ReactNode;
+    iconButton?: React.ReactNode;
+    onIconButtonClick?: () => void;
+}> = ({ power, isSelected, isDisabled, onToggle, children, iconButton, onIconButtonClick }) => {
+    const wrapperClass = `bg-black/40 backdrop-blur-sm p-4 rounded-xl border flex flex-col text-center transition-all h-full ${
+        isSelected
+        ? 'border-purple-400 ring-2 ring-purple-400/50'
+        : isDisabled
+            ? 'opacity-50 cursor-not-allowed border-gray-800'
+            : 'border-white/10 hover:border-purple-400/70 cursor-pointer'
+    }`;
+
+    const handleIconClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        onIconButtonClick?.();
+    };
+    
+    return (
+        <div className={`${wrapperClass} relative`} onClick={() => !isDisabled && onToggle(power.id)}>
+            {iconButton && onIconButtonClick && isSelected && (
+                <button
+                    onClick={handleIconClick}
+                    className="absolute top-2 right-2 p-2 rounded-full bg-purple-900/50 text-purple-200/70 hover:bg-purple-800/60 hover:text-purple-100 transition-colors z-10"
+                    aria-label="Card action"
+                >
+                    {iconButton}
+                </button>
+            )}
+            <img src={power.imageSrc} alt={power.title} className="w-full h-40 rounded-md mb-4 object-cover" />
+            <h4 className="font-cinzel font-bold text-white tracking-wider text-xl">{power.title}</h4>
+            {power.cost && <p className="text-xs text-yellow-300/70 italic mt-1">{power.cost}</p>}
+            <div className="w-16 h-px bg-white/10 mx-auto my-2"></div>
+            <p className="text-xs text-gray-400 leading-relaxed flex-grow text-left whitespace-pre-wrap">{power.description}</p>
+            {children && (
+                 <div className="mt-4 pt-4 border-t border-gray-700/50">
+                    {children}
+                 </div>
+            )}
+        </div>
+    );
+};
+
 export const RighteousCreationSection: React.FC = () => {
     const ctx = useCharacterContext();
-    const [isWeaponModalOpen, setIsWeaponModalOpen] = useState(false);
+    const [isWeaponsmithModalOpen, setIsWeaponsmithModalOpen] = useState(false);
+    const [isRoboticistIModalOpen, setIsRoboticistIModalOpen] = useState(false);
+    const [isCompanionModalOpen, setIsCompanionModalOpen] = useState(false);
+    const [isVehicleModalOpen, setIsVehicleModalOpen] = useState(false);
+
     const {
         selectedBlessingEngraving,
         righteousCreationEngraving,
         handleRighteousCreationEngravingSelect,
-        righteousCreationWeaponName,
-        handleRighteousCreationWeaponAssign,
+        weaponsmithWeaponName,
+        handleWeaponsmithWeaponAssign,
+        roboticistIBeastName,
+        handleRoboticistIBeastAssign,
+        roboticistCompanionName,
+        handleRoboticistCompanionAssign,
+        masterMechanicVehicleName,
+        handleMasterMechanicVehicleAssign,
     } = useCharacterContext();
 
     const isRighteousCreationPowerDisabled = (power: RighteousCreationPower, type: 'magitech' | 'arcane_constructs' | 'metamagic'): boolean => {
@@ -53,7 +111,6 @@ export const RighteousCreationSection: React.FC = () => {
     const getRighteousCreationSigil = (id: string) => RIGHTEOUS_CREATION_SIGIL_TREE_DATA.find(s => s.id === id)!;
     
     const getSigilDisplayInfo = (sigil: RighteousCreationSigil): { color: SigilColor, benefits: React.ReactNode } => {
-        // FIX: Explicitly type colorMap to ensure color is inferred as SigilColor, not string.
         const colorMap: Record<string, SigilColor> = {
             'ROOKIE ENGINEER': 'orange', 'POLYMATH™': 'yellow', 'TECHNICIAN': 'gray', 'MAGICIAN': 'gray',
             'MAGITECHNICIAN': 'green', 'ARCANE WIZARD': 'green', 'METAMAGICIAN': 'green',
@@ -83,7 +140,6 @@ export const RighteousCreationSection: React.FC = () => {
                         const finalEngraving = righteousCreationEngraving ?? selectedBlessingEngraving;
                         const isSelected = finalEngraving === engraving.id;
                         const isOverridden = righteousCreationEngraving !== null;
-                        const isWeapon = engraving.id === 'weapon';
 
                         return (
                              <div key={engraving.id} className="relative">
@@ -96,36 +152,13 @@ export const RighteousCreationSection: React.FC = () => {
                                     `}
                                 >
                                     <span className="font-cinzel tracking-wider uppercase">{engraving.title}</span>
-                                    {isWeapon && isSelected && righteousCreationWeaponName && (
-                                        <p className="text-xs text-purple-300 mt-2 truncate">({righteousCreationWeaponName})</p>
-                                    )}
                                 </button>
-                                {isWeapon && isSelected && (
-                                    <button
-                                        onClick={() => setIsWeaponModalOpen(true)}
-                                        className="absolute top-2 right-2 p-2 rounded-full bg-purple-900/50 text-purple-200/70 hover:bg-purple-800/60 hover:text-purple-100 transition-colors z-10"
-                                        aria-label="Change Weapon"
-                                        title="Change Weapon"
-                                    >
-                                        <WeaponIcon />
-                                    </button>
-                                )}
                             </div>
                         );
                     })}
                 </div>
             </div>
 
-            {isWeaponModalOpen && (
-                <WeaponSelectionModal
-                    onClose={() => setIsWeaponModalOpen(false)}
-                    onSelect={(weaponName) => {
-                        handleRighteousCreationWeaponAssign(weaponName);
-                        setIsWeaponModalOpen(false);
-                    }}
-                    currentWeaponName={righteousCreationWeaponName}
-                />
-            )}
             <div className="my-16 bg-black/20 p-8 rounded-lg border border-gray-800">
                 <SectionHeader>SIGIL TREE</SectionHeader>
                 <div className="flex flex-col items-center gap-4">
@@ -155,14 +188,57 @@ export const RighteousCreationSection: React.FC = () => {
                 <SectionHeader>SPECIALTY</SectionHeader>
                 <SectionSubHeader>Picks Available: {ctx.availableSpecialtyPicks - ctx.selectedSpecialties.size} / {ctx.availableSpecialtyPicks}</SectionSubHeader>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {RIGHTEOUS_CREATION_SPECIALTIES_DATA.map(specialty => <ChoiceCard key={specialty.id} item={{...specialty, cost: ''}} isSelected={ctx.selectedSpecialties.has(specialty.id)} onSelect={ctx.handleSpecialtySelect} disabled={!ctx.selectedSpecialties.has(specialty.id) && ctx.selectedSpecialties.size >= ctx.availableSpecialtyPicks} selectionColor="amber" />)}
+                    {RIGHTEOUS_CREATION_SPECIALTIES_DATA.map(specialty => <PowerCard key={specialty.id} power={{...specialty, cost: ''}} isSelected={ctx.selectedSpecialties.has(specialty.id)} onToggle={ctx.handleSpecialtySelect} isDisabled={!ctx.selectedSpecialties.has(specialty.id) && ctx.selectedSpecialties.size >= ctx.availableSpecialtyPicks} />)}
                 </div>
             </div>
             <div className="mt-16 px-4 lg:px-8">
                 <SectionHeader>MAGITECH</SectionHeader>
                 <SectionSubHeader>Picks Available: {ctx.availableMagitechPicks - ctx.selectedMagitechPowers.size} / {ctx.availableMagitechPicks}</SectionSubHeader>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    {RIGHTEOUS_CREATION_MAGITECH_DATA.map(power => <ChoiceCard key={power.id} item={{...power, cost: ''}} isSelected={ctx.selectedMagitechPowers.has(power.id)} onSelect={ctx.handleMagitechPowerSelect} disabled={isRighteousCreationPowerDisabled(power, 'magitech')} selectionColor="amber" />)}
+                    {RIGHTEOUS_CREATION_MAGITECH_DATA.map(power => {
+                        const isWeaponsmith = power.id === 'weaponsmith';
+                        const isWeaponsmithSelected = ctx.selectedMagitechPowers.has('weaponsmith');
+
+                        const isMechanic1 = power.id === 'master_mechanic_i';
+                        const isMechanic2 = power.id === 'master_mechanic_ii';
+                        const isMechanic1Selected = ctx.selectedMagitechPowers.has('master_mechanic_i');
+                        const isMechanic2Selected = ctx.selectedMagitechPowers.has('master_mechanic_ii');
+
+                        const showButtonOn1 = isMechanic1 && isMechanic1Selected && !isMechanic2Selected;
+                        const showButtonOn2 = isMechanic2 && isMechanic2Selected;
+                        const isSelected = ctx.selectedMagitechPowers.has(power.id);
+                        
+                        return (
+                            <PowerCard 
+                                key={power.id} 
+                                power={{...power, cost: ''}} 
+                                isSelected={isSelected} 
+                                onToggle={ctx.handleMagitechPowerSelect} 
+                                isDisabled={isRighteousCreationPowerDisabled(power, 'magitech')}
+                                iconButton={
+                                    (isWeaponsmith && isWeaponsmithSelected) ? <WeaponIcon /> :
+                                    (showButtonOn1 || showButtonOn2) ? <VehicleIcon /> : undefined
+                                }
+                                onIconButtonClick={
+                                    (isWeaponsmith && isWeaponsmithSelected) ? () => setIsWeaponsmithModalOpen(true) :
+                                    (showButtonOn1 || showButtonOn2) ? () => setIsVehicleModalOpen(true) : undefined
+                                }
+                            >
+                                {isWeaponsmith && isWeaponsmithSelected && weaponsmithWeaponName && (
+                                    <div className="text-center">
+                                        <p className="text-xs text-gray-400">Assigned:</p>
+                                        <p className="text-sm font-bold text-cyan-300">{weaponsmithWeaponName}</p>
+                                    </div>
+                                )}
+                                {(isMechanic1 || isMechanic2) && isMechanic1Selected && masterMechanicVehicleName && (
+                                    <div className="text-center">
+                                        <p className="text-xs text-gray-400">Assigned:</p>
+                                        <p className="text-sm font-bold text-cyan-300">{masterMechanicVehicleName}</p>
+                                    </div>
+                                )}
+                            </PowerCard>
+                        )
+                    })}
                 </div>
             </div>
             <div className="mt-16 px-4 lg:px-8">
@@ -175,28 +251,52 @@ export const RighteousCreationSection: React.FC = () => {
                         const firstHalf = otherPowers.slice(0, 3);
                         const secondHalf = otherPowers.slice(3);
                         
-                        const renderPower = (power: RighteousCreationPower) => (
-                            <ChoiceCard 
-                                key={power.id} 
-                                item={{...power, cost: ''}} 
-                                isSelected={ctx.selectedArcaneConstructsPowers.has(power.id)} 
-                                onSelect={ctx.handleArcaneConstructsPowerSelect} 
-                                disabled={isRighteousCreationPowerDisabled(power, 'arcane_constructs')} 
-                                selectionColor="amber"
-                             />
-                        );
+                        const renderPower = (power: RighteousCreationPower) => {
+                            const isRoboticist1 = power.id === 'roboticist_i';
+                            const isRoboticist1Selected = ctx.selectedArcaneConstructsPowers.has('roboticist_i');
+                            const isRoboticist2 = power.id === 'roboticist_ii';
+                            const isRoboticist2Selected = ctx.selectedArcaneConstructsPowers.has('roboticist_ii');
+                            const isSelected = ctx.selectedArcaneConstructsPowers.has(power.id);
+
+                            return (
+                                <PowerCard
+                                    key={power.id}
+                                    power={{...power, cost: ''}}
+                                    isSelected={isSelected}
+                                    onToggle={ctx.handleArcaneConstructsPowerSelect}
+                                    isDisabled={isRighteousCreationPowerDisabled(power, 'arcane_constructs')}
+                                    iconButton={(isRoboticist1 && isRoboticist1Selected) || (isRoboticist2 && isRoboticist2Selected) ? <CompanionIcon /> : undefined}
+                                    onIconButtonClick={
+                                        isRoboticist1 && isRoboticist1Selected ? () => setIsRoboticistIModalOpen(true) :
+                                        isRoboticist2 && isRoboticist2Selected ? () => setIsCompanionModalOpen(true) : undefined
+                                    }
+                                >
+                                     {isRoboticist1 && isRoboticist1Selected && roboticistIBeastName && (
+                                        <div className="text-center">
+                                            <p className="text-xs text-gray-400">Assigned:</p>
+                                            <p className="text-sm font-bold text-amber-300">{roboticistIBeastName}</p>
+                                        </div>
+                                    )}
+                                     {isRoboticist2 && isRoboticist2Selected && roboticistCompanionName && (
+                                        <div className="text-center">
+                                            <p className="text-xs text-gray-400">Assigned:</p>
+                                            <p className="text-sm font-bold text-purple-300">{roboticistCompanionName}</p>
+                                        </div>
+                                    )}
+                                </PowerCard>
+                            );
+                        };
 
                         return (
                             <>
                                 {firstHalf.map(renderPower)}
                                 {specialPower && (
                                     <div key={specialPower.id} className="lg:row-span-2">
-                                        <ChoiceCard
-                                            item={{...specialPower, cost: ''}}
+                                        <PowerCard
+                                            power={{...specialPower, cost: ''}}
                                             isSelected={ctx.selectedArcaneConstructsPowers.has(specialPower.id)}
-                                            onSelect={ctx.handleArcaneConstructsPowerSelect}
-                                            disabled={isRighteousCreationPowerDisabled(specialPower, 'arcane_constructs')}
-                                            selectionColor="amber"
+                                            onToggle={ctx.handleArcaneConstructsPowerSelect}
+                                            isDisabled={isRighteousCreationPowerDisabled(specialPower, 'arcane_constructs')}
                                         />
                                     </div>
                                 )}
@@ -217,13 +317,12 @@ export const RighteousCreationSection: React.FC = () => {
                         const secondHalf = otherPowers.slice(3);
 
                         const renderPower = (power: RighteousCreationPower) => (
-                            <ChoiceCard 
+                            <PowerCard 
                                 key={power.id} 
-                                item={{...power, cost: ''}} 
+                                power={{...power, cost: ''}} 
                                 isSelected={ctx.selectedMetamagicPowers.has(power.id)} 
-                                onSelect={ctx.handleMetamagicPowerSelect} 
-                                disabled={isRighteousCreationPowerDisabled(power, 'metamagic')} 
-                                selectionColor="amber"
+                                onToggle={ctx.handleMetamagicPowerSelect} 
+                                isDisabled={isRighteousCreationPowerDisabled(power, 'metamagic')} 
                             />
                         );
 
@@ -232,12 +331,11 @@ export const RighteousCreationSection: React.FC = () => {
                                 {firstHalf.map(renderPower)}
                                 {specialPower && (
                                     <div key={specialPower.id} className="lg:row-span-2">
-                                        <ChoiceCard
-                                            item={{...specialPower, cost: ''}}
+                                        <PowerCard
+                                            power={{...specialPower, cost: ''}}
                                             isSelected={ctx.selectedMetamagicPowers.has(specialPower.id)}
-                                            onSelect={ctx.handleMetamagicPowerSelect}
-                                            disabled={isRighteousCreationPowerDisabled(specialPower, 'metamagic')}
-                                            selectionColor="amber"
+                                            onToggle={ctx.handleMetamagicPowerSelect}
+                                            isDisabled={isRighteousCreationPowerDisabled(specialPower, 'metamagic')}
                                         />
                                     </div>
                                 )}
@@ -247,6 +345,55 @@ export const RighteousCreationSection: React.FC = () => {
                     })()}
                 </div>
             </div>
+            {isWeaponsmithModalOpen && (
+                <WeaponSelectionModal
+                    onClose={() => setIsWeaponsmithModalOpen(false)}
+                    onSelect={(name) => {
+                        handleWeaponsmithWeaponAssign(name);
+                        setIsWeaponsmithModalOpen(false);
+                    }}
+                    currentWeaponName={weaponsmithWeaponName}
+                    pointLimit={40}
+                    title="Assign Masterpiece Weapon"
+                />
+            )}
+            {isRoboticistIModalOpen && (
+                <BeastSelectionModal
+                    onClose={() => setIsRoboticistIModalOpen(false)}
+                    onSelect={(name) => {
+                        handleRoboticistIBeastAssign(name);
+                        setIsRoboticistIModalOpen(false);
+                    }}
+                    currentBeastName={roboticistIBeastName}
+                    pointLimit={40}
+                    title="Assign Magnum Opus"
+                />
+            )}
+            {isCompanionModalOpen && (
+                <CompanionSelectionModal
+                    onClose={() => setIsCompanionModalOpen(false)}
+                    onSelect={(name) => {
+                        handleRoboticistCompanionAssign(name);
+                        setIsCompanionModalOpen(false);
+                    }}
+                    currentCompanionName={roboticistCompanionName}
+                    pointLimit={50}
+                    title="Assign Magnum Opus"
+                    categoryFilter="automaton"
+                />
+            )}
+            {isVehicleModalOpen && (
+                <VehicleSelectionModal
+                    title="Assign Dream Ride"
+                    onClose={() => setIsVehicleModalOpen(false)}
+                    onSelect={(name) => {
+                        handleMasterMechanicVehicleAssign(name);
+                        setIsVehicleModalOpen(false);
+                    }}
+                    currentVehicleName={masterMechanicVehicleName}
+                    pointLimit={ctx.selectedMagitechPowers.has('master_mechanic_ii') ? 100 : 50}
+                />
+            )}
         </section>
     );
 };

@@ -1,14 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useCharacterContext } from '../context/CharacterContext';
 import {
     SCHOOLS_DATA, HEADMASTERS_DATA, TEACHERS_DATA,
     DURATION_DATA, CLUBS_DATA, MISC_ACTIVITIES_DATA, CLASSMATES_DATA,
-    DOMINIONS, UNIFORMS_DATA
+    DOMINIONS, UNIFORMS_DATA, CUSTOM_CLASSMATE_CHOICES_DATA
 } from '../constants';
 import { ChoiceCard } from './TraitCard';
 import { ClassmateCard } from './ClassmateCard';
-import { SectionHeader, SectionSubHeader } from './ui';
+import { SectionHeader, SectionSubHeader, CompanionIcon } from './ui';
 import { UniformSelectionModal } from './UniformSelectionModal';
+import { CompanionSelectionModal } from './SigilTreeOptionCard';
+import type { CustomClassmateInstance } from '../types';
 
 export const PageTwo: React.FC = () => {
     const {
@@ -21,6 +23,13 @@ export const PageTwo: React.FC = () => {
         selectedClassmateIds, handleClassmateSelect,
         classmateUniforms, handleClassmateUniformSelect,
         isBoardingSchool, handleBoardingSchoolSelect,
+        customClassmates,
+        handleAddCustomClassmate,
+        handleRemoveCustomClassmate,
+        assigningClassmate,
+        handleOpenAssignModal,
+        handleCloseAssignModal,
+        handleAssignCustomClassmateName,
     } = useCharacterContext();
 
     const userSchoolKey = selectedDominionId || 'halidew'; // Default to halidew if nothing is selected
@@ -34,6 +43,13 @@ export const PageTwo: React.FC = () => {
         classmateId: string | null;
         classmateName: string | null;
     }>({ isOpen: false, classmateId: null, classmateName: null });
+
+    const pointLimit = useMemo(() => {
+        if (!assigningClassmate) return 0;
+        return assigningClassmate.optionId === 'custom_classmate_25' ? 25 :
+               assigningClassmate.optionId === 'custom_classmate_35' ? 35 :
+               assigningClassmate.optionId === 'custom_classmate_50' ? 50 : 0;
+    }, [assigningClassmate]);
 
     const handleOpenUniformModal = (classmateId: string, classmateName: string) => {
         setUniformModalState({ isOpen: true, classmateId, classmateName });
@@ -211,6 +227,67 @@ export const PageTwo: React.FC = () => {
                         );
                     })}
                 </div>
+                 <div className="mt-8">
+                    <div className="relative flex flex-row items-start p-6 bg-black/40 border border-yellow-800/60 rounded-lg gap-6">
+                        <img 
+                            src="https://i.ibb.co/3Wf4j6Y/companion-create.png" 
+                            alt="Create your own companion" 
+                            className="w-2/5 sm:w-1/3 aspect-[4/3] object-cover object-left rounded-md flex-shrink-0"
+                        />
+                        <div className="flex flex-col flex-grow">
+                            <p className="text-gray-300 text-sm leading-relaxed mb-4">
+                                If you have something specific in mind you're after, you may want to create your own companion! If you spend -4 FP, you can create a companion with 25 Companion Points on the Reference page; if you spend -6 FP, you are given 35 Companion Points instead; and if you spend -8 FP, you are given 50 Companion Points.
+                            </p>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                {CUSTOM_CLASSMATE_CHOICES_DATA.map(option => (
+                                    <div 
+                                        key={option.id}
+                                        onClick={() => handleAddCustomClassmate(option.id)}
+                                        className="relative p-4 bg-gray-900/50 border border-gray-700 rounded-md cursor-pointer transition-colors hover:border-amber-300/70 text-center"
+                                        role="button"
+                                        tabIndex={0}
+                                        aria-label={`Add a ${option.description}`}
+                                    >
+                                        <div
+                                            className="absolute top-1 right-1 p-1 text-amber-200/50"
+                                            aria-hidden="true"
+                                        >
+                                            <CompanionIcon />
+                                        </div>
+                                        <p className="font-semibold text-sm text-red-400">{option.cost.toUpperCase()}</p>
+                                        <p className="text-sm text-gray-400 mt-1">{option.description}</p>
+                                    </div>
+                                ))}
+                            </div>
+                            {customClassmates.length > 0 && (
+                                <div className="mt-4 pt-4 border-t border-yellow-800/30 space-y-2">
+                                    <h4 className="font-cinzel text-amber-200 tracking-wider">Your Custom Classmates</h4>
+                                    {customClassmates.map(c => {
+                                        const optionData = CUSTOM_CLASSMATE_CHOICES_DATA.find(opt => opt.id === c.optionId);
+                                        return (
+                                            <div key={c.id} className="bg-black/20 p-2 rounded-md flex justify-between items-center">
+                                                <div className="flex items-center gap-3">
+                                                    <button onClick={() => handleRemoveCustomClassmate(c.id)} className="text-red-500 hover:text-red-400 text-xl font-bold px-2" title="Remove Companion Slot">&times;</button>
+                                                    <div>
+                                                        <p className="text-sm font-semibold text-white">{optionData?.description}</p>
+                                                        <p className="text-xs text-gray-400">Assigned: <span className="font-bold text-amber-300">{c.companionName || 'None'}</span></p>
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    onClick={() => handleOpenAssignModal(c)}
+                                                    className="p-2 rounded-full bg-black/50 text-amber-200/70 hover:bg-yellow-900/50 hover:text-amber-100 transition-colors"
+                                                    title="Assign Companion"
+                                                >
+                                                    <CompanionIcon />
+                                                </button>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
              </div>
 
              {uniformModalState.isOpen && uniformModalState.classmateId && uniformModalState.classmateName && (
@@ -219,6 +296,20 @@ export const PageTwo: React.FC = () => {
                     currentUniformId={classmateUniforms.get(uniformModalState.classmateId)}
                     onClose={handleCloseUniformModal}
                     onSelect={handleSelectUniformInModal}
+                />
+            )}
+            
+            {assigningClassmate && (
+                <CompanionSelectionModal
+                    currentCompanionName={assigningClassmate.companionName}
+                    onClose={handleCloseAssignModal}
+                    onSelect={(name) => {
+                        handleAssignCustomClassmateName(assigningClassmate.id, name);
+                        handleCloseAssignModal();
+                    }}
+                    pointLimit={pointLimit}
+                    title={`Assign Custom Classmate (${pointLimit} CP)`}
+                    categoryFilter="mage"
                 />
             )}
         </>
